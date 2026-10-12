@@ -1,0 +1,10 @@
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
+
+# env files: only the examples are committed
+.env
+.env.*
+!.env.example
