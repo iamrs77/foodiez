@@ -67,12 +67,15 @@ export async function listRestaurants(req, res) {
 		};
 	}
 
-	res.json(await Restaurant.find(filter).sort({ createdAt: -1 }));
+	res.json(await Restaurant.find(filter).sort({ createdAt: -1, _id: -1 }));
 }
 
 export async function listMyRestaurants(req, res) {
 	res.json(
-		await Restaurant.find({ owner: req.user._id }).sort({ createdAt: -1 }),
+		await Restaurant.find({ owner: req.user._id }).sort({
+			createdAt: -1,
+			_id: -1,
+		}),
 	);
 }
 

@@ -54,7 +54,10 @@ export async function listDishes(req, res) {
 		throw new HttpError(404, 'Restaurant not found');
 	}
 	res.json(
-		await Dish.find({ restaurant: restaurant._id }).sort({ createdAt: 1 }),
+		await Dish.find({ restaurant: restaurant._id }).sort({
+			createdAt: 1,
+			_id: 1,
+		}),
 	);
 }
 

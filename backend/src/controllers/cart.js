@@ -16,7 +16,7 @@ export const updateItemSchema = z.object({ quantity });
 // the cart as the web app shows it: { restaurant, items, total }
 export async function buildCart(userId) {
 	const rows = await CartItem.find({ user: userId })
-		.sort({ createdAt: 1 })
+		.sort({ createdAt: 1, _id: 1 })
 		.populate({
 			path: 'dish',
 			populate: { path: 'restaurant', select: 'name' },
