@@ -8,7 +8,7 @@ on:
 jobs:
   backend:
     name: Backend (lint and tests)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: backend
@@ -31,7 +31,7 @@ jobs:
 
   frontend:
     name: Frontend (lint, tests and build)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: frontend
@@ -50,7 +50,7 @@ jobs:
 
   docker:
     name: Docker Compose runs the whole app
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
@@ -64,9 +64,11 @@ jobs:
           curl --fail --silent --show-error http://localhost:8080/api/restaurants | grep -q 'Spice Route'
           curl --fail --silent --show-error http://localhost:8080/restaurants/anything | grep -q '<div id="root">'
 
-      - name: Show logs
+      - name: Show container status and logs
         if: failure()
-        run: docker compose logs
+        run: |
+          docker compose ps --all
+          docker compose logs
 
       - name: Stop everything
         if: always()
