@@ -3,7 +3,6 @@
 	"version": "2.0.0",
 	"description": "REST API for Foodiez: restaurants, menus, cart and orders",
 	"author": "Rohit Sharma",
-	"license": "MIT",
 	"private": true,
 	"type": "module",
 	"engines": {

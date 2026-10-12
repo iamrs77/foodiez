@@ -1,0 +1,59 @@
+# Run the whole app:                       docker compose up --build
+#   then open http://localhost:8080
+# Only the database, for "npm run dev":    docker compose up -d db
+
+services:
+  # MongoDB, with data kept in a Docker volume between restarts
+  db:
+    image: mongo:8
+    ports:
+      - 27017:27017
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', 'db.adminCommand("ping").ok']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # the Express API (not published: the web container passes /api to it)
+  api:
+    build: ./backend
+    environment:
+      MONGODB_URI: mongodb://db:27017/foodiez
+      JWT_SECRET: ${JWT_SECRET:-change-me-to-a-long-random-string}
+      SEED_DEMO_DATA: 'true'
+      TRUST_PROXY: '1'
+      CORS_ORIGIN: http://localhost:8080
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:5000/api/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+  # nginx serving the React app
+  web:
+    build: ./frontend
+    ports:
+      - 8080:80
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '--spider', 'http://localhost/']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  mongo-data:

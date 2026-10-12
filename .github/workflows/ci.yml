@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    name: Backend (lint and tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      # the tests download a MongoDB binary; keep it between runs
+      - uses: actions/cache@v6
+        with:
+          path: backend/node_modules/.cache/mongodb-memory-server
+          key: mongodb-binary-${{ runner.os }}-${{ hashFiles('backend/package-lock.json') }}
+      - run: npm test
+
+  frontend:
+    name: Frontend (lint, tests and build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm test
+      - run: npm run build
+
+  docker:
+    name: Docker Compose runs the whole app
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Start the database, API and web app
+        run: docker compose up --build --detach --wait
+
+      - name: Check the web app, and the API through it
+        run: |
+          curl --fail --silent --show-error http://localhost:8080/ | grep -q '<div id="root">'
+          curl --fail --silent --show-error http://localhost:8080/api/health
+          curl --fail --silent --show-error http://localhost:8080/api/restaurants | grep -q 'Spice Route'
+          curl --fail --silent --show-error http://localhost:8080/restaurants/anything | grep -q '<div id="root">'
+
+      - name: Show logs
+        if: failure()
+        run: docker compose logs
+
+      - name: Stop everything
+        if: always()
+        run: docker compose down --volumes
