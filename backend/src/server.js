@@ -17,7 +17,16 @@ if (config.SEED_DEMO_DATA && (await seedIfEmpty())) {
 	console.log('Empty database: added demo restaurants and accounts');
 }
 
-const server = createApp().listen(config.PORT, () => {
+// Express 5 passes startup errors (like a busy port) to this callback
+const server = createApp().listen(config.PORT, (err) => {
+	if (err) {
+		console.error(
+			err.code === 'EADDRINUSE'
+				? `Port ${config.PORT} is already in use. Stop the program that uses it, or set another PORT in .env.`
+				: `Could not start the API: ${err.message}`,
+		);
+		process.exit(1);
+	}
 	console.log(`Foodiez API listening on http://localhost:${config.PORT}`);
 });
 

@@ -1,0 +1,20 @@
+{
+	"name": "foodiez",
+	"version": "2.0.0",
+	"description": "Food ordering app built with React, Node.js (Express) and MongoDB",
+	"author": "Rohit Sharma",
+	"private": true,
+	"engines": {
+		"node": ">=22"
+	},
+	"scripts": {
+		"postinstall": "node scripts/run-in.mjs backend install && node scripts/run-in.mjs frontend install",
+		"dev": "concurrently --names api,web --prefix-colors yellow,cyan --kill-others \"node scripts/run-in.mjs backend run dev:memory\" \"wait-on --timeout 300000 http-get://localhost:4000/api/health && node scripts/run-in.mjs frontend run dev\"",
+		"test": "node scripts/run-in.mjs backend test && node scripts/run-in.mjs frontend test",
+		"lint": "node scripts/run-in.mjs backend run lint && node scripts/run-in.mjs frontend run lint"
+	},
+	"devDependencies": {
+		"concurrently": "^10.0.6",
+		"wait-on": "^9.5.1"
+	}
+}

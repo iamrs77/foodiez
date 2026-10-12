@@ -8,7 +8,7 @@ export default defineConfig({
 		port: 5173,
 		// during development the API runs separately, so pass /api calls on to it
 		proxy: {
-			'/api': process.env.API_PROXY_TARGET ?? 'http://localhost:5000',
+			'/api': process.env.API_PROXY_TARGET ?? 'http://localhost:4000',
 		},
 	},
 	test: {

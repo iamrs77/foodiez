@@ -11,5 +11,5 @@ COPY src ./src
 
 # don't run as root
 USER node
-EXPOSE 5000
+EXPOSE 4000
 CMD ["node", "src/server.js"]

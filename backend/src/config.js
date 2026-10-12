@@ -12,7 +12,7 @@ const schema = z.object({
 	NODE_ENV: z
 		.enum(['development', 'test', 'production'])
 		.default('development'),
-	PORT: z.coerce.number().int().positive().default(5000),
+	PORT: z.coerce.number().int().positive().default(4000),
 	MONGODB_URI: z.string({ error: 'is required' }).min(1, 'is required'),
 	JWT_SECRET: z
 		.string({ error: 'is required' })
