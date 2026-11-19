@@ -13,6 +13,10 @@ const schema = z.object({
 		.enum(['development', 'test', 'production'])
 		.default('development'),
 	PORT: z.coerce.number().int().positive().default(4000),
+	// how much the API logs: fatal, error, warn, info, debug, trace or silent
+	LOG_LEVEL: z
+		.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
+		.optional(),
 	MONGODB_URI: z.string({ error: 'is required' }).min(1, 'is required'),
 	JWT_SECRET: z
 		.string({ error: 'is required' })
@@ -51,4 +55,10 @@ if (!result.success) {
 	process.exit(1);
 }
 
-export const config = result.data;
+export const config = {
+	...result.data,
+	// tests stay quiet unless asked
+	LOG_LEVEL:
+		result.data.LOG_LEVEL ??
+		(result.data.NODE_ENV === 'test' ? 'silent' : 'info'),
+};

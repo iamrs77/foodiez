@@ -13,9 +13,11 @@
 		"test": "node scripts/run-in.mjs backend test && node scripts/run-in.mjs frontend test",
 		"build": "node scripts/run-in.mjs frontend run build",
 		"start": "node backend/src/server.js",
-		"lint": "node scripts/run-in.mjs backend run lint && node scripts/run-in.mjs frontend run lint"
+		"lint": "node scripts/run-in.mjs backend run lint && node scripts/run-in.mjs frontend run lint",
+		"e2e": "playwright test"
 	},
 	"devDependencies": {
+		"@playwright/test": "^1.65.1",
 		"concurrently": "^10.0.6",
 		"wait-on": "^9.5.1"
 	}

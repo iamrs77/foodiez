@@ -1,11 +1,13 @@
 import { createApp } from './app.js';
 import { config } from './config.js';
 import { connectDb, disconnectDb } from './db.js';
+import { logger } from './logger.js';
 import { seedIfEmpty } from './seed/seed.js';
 
 try {
 	await connectDb(config.MONGODB_URI);
 } catch (err) {
+	// console, not the logger: it's printed before the process exits
 	console.error(`Could not connect to MongoDB: ${err.message}`);
 	console.error(
 		'Check MONGODB_URI in .env, or start the database with "docker compose up -d db".',
@@ -14,7 +16,7 @@ try {
 }
 
 if (config.SEED_DEMO_DATA && (await seedIfEmpty())) {
-	console.log('Empty database: added demo restaurants and accounts');
+	logger.info('Empty database: added demo restaurants and accounts');
 }
 
 // Express 5 passes startup errors (like a busy port) to this callback
@@ -27,7 +29,7 @@ const server = createApp().listen(config.PORT, (err) => {
 		);
 		process.exit(1);
 	}
-	console.log(`Foodiez API listening on http://localhost:${config.PORT}`);
+	logger.info(`Foodiez API listening on http://localhost:${config.PORT}`);
 });
 
 // finish open requests and close the database connection on Ctrl+C or docker stop

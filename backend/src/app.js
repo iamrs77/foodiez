@@ -5,6 +5,7 @@ import express from 'express';
 import helmet from 'helmet';
 import mongoose from 'mongoose';
 import { config } from './config.js';
+import { requestLogger } from './logger.js';
 import { requireAuth, requireRole } from './middleware/auth.js';
 import { errorHandler, notFound } from './middleware/errors.js';
 import authRoutes from './routes/auth.js';
@@ -20,7 +21,9 @@ export function createApp() {
 
 	// needed for correct client IPs (rate limiting) behind a reverse proxy
 	app.set('trust proxy', config.TRUST_PROXY);
+	app.disable('x-powered-by');
 
+	app.use(requestLogger);
 	app.use(helmet());
 	app.use(cors({ origin: config.CORS_ORIGIN.split(',') }));
 	app.use(express.json({ limit: '100kb' }));

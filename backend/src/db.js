@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { logger } from './logger.js';
 
 // inside inTransaction(fn), every query joins the transaction by itself, so
 // none can be left out by forgetting to pass the session
@@ -26,7 +27,7 @@ async function supportsTransactions() {
 			hello.setName || hello.msg === 'isdbgrid',
 		);
 		if (!transactionsSupported) {
-			console.warn(
+			logger.warn(
 				'MongoDB is a single server, not a replica set: orders are placed without a transaction',
 			);
 		}

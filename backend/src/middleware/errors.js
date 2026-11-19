@@ -20,7 +20,7 @@ export function notFound(req, _res, next) {
 
 // every error ends up here (Express 5 also forwards errors from async handlers)
 // and is turned into a JSON response: { message, errors? }
-export function errorHandler(err, _req, res, _next) {
+export function errorHandler(err, req, res, _next) {
 	if (err instanceof z.ZodError) {
 		return res.status(400).json({
 			message: 'Some fields are missing or invalid',
@@ -64,6 +64,10 @@ export function errorHandler(err, _req, res, _next) {
 		return res.status(err.status).json({ message: err.message });
 	}
 
-	console.error(err);
-	res.status(500).json({ message: 'Something went wrong, please try again' });
+	// the request id is in the log line too, so a user's report can be traced
+	req.log.error({ err }, 'Unhandled error');
+	res.status(500).json({
+		message: 'Something went wrong, please try again',
+		requestId: req.id,
+	});
 }
