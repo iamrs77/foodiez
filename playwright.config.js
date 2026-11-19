@@ -9,7 +9,11 @@ export default defineConfig({
 	testDir: 'e2e',
 	forbidOnly: Boolean(process.env.CI),
 	retries: process.env.CI ? 1 : 0,
-	reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
+	// in CI, failures also become annotations on the commit (readable without
+	// downloading logs), and the HTML report is kept as an artifact
+	reporter: process.env.CI
+		? [['list'], ['github'], ['html', { open: 'never' }]]
+		: 'list',
 	use: {
 		baseURL: `http://localhost:${PORT}`,
 		trace: 'retain-on-failure',
