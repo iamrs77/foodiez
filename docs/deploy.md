@@ -34,9 +34,9 @@ Don't paste it anywhere but Render. You don't need to create any collections: th
 
 ## 3. Check it
 
-- `https://<your-app>/api/health` returns `{"status":"ok"}`.
-- The home page shows the five showcase restaurants, with **Try the demo** above them.
-- Press **Try as a customer**: a banner says the demo is private and deleted in about 24 hours. Place an order, press **Switch to the restaurant owner**, change a menu, and switch back to see the change.
+- `https://<your-app>/api/health` returns `{"status":"ok"}`, and `https://<your-app>/api/docs` shows the API's documentation.
+- The home page shows the five showcase restaurants with their photos, with **Try the demo** above them.
+- Press **Try as a customer**: a banner says the demo is private and deleted in about 24 hours. Place an order: the tracking page says it's placed. Press **Switch to the restaurant owner**, open **Orders**, and accept the order and start preparing it. Switch back: the tracking page shows it being prepared. (Placing an order uses a MongoDB transaction; Atlas supports them, so this checks the database too.)
 - Open the site in a private window: the showcase is unchanged.
 
 ## How it stays free

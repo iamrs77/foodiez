@@ -1,6 +1,6 @@
 # 2. Keep MongoDB, with Mongoose
 
-- **Status:** Accepted
+- **Status:** Accepted; amended by [ADR 0009](0009-order-lifecycle-and-safe-checkout.md)
 - **Date:** 2026-10-12
 
 ## Context
@@ -23,5 +23,5 @@ Turned down: **PostgreSQL**. It would give foreign keys (deletes could cascade i
 ## Consequences
 
 - **Deletes cascade in code.** Deleting a restaurant deletes its dishes and removes them from carts in the controller; the database doesn't enforce it.
-- **No transactions are used.** Placing an order creates the order and then empties the cart in two steps, so a crash between them leaves both. The [failure modes](../architecture.md#failure-modes) list this and a few similar cases. MongoDB supports transactions on replica sets (Atlas is one), so they can be added where it starts to matter.
+- **Transactions where they matter.** At first no transactions were used, so placing an order (create it, then empty the cart) could be done twice or half done. [ADR 0009](0009-order-lifecycle-and-safe-checkout.md) moved checkout into a transaction. Transactions need a replica set: Atlas is one, and the in-memory and Docker databases run as one-member replica sets.
 - **Uniqueness comes from indexes**: one account per email, one dish name per restaurant, one cart row per dish. Tests build the indexes before they run, so they behave as in production.

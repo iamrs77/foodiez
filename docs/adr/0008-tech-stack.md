@@ -28,7 +28,13 @@ Turned down: **TanStack Query** (what [Stockroom](https://github.com/iamrs77/sto
 
 - **Vitest** for both halves, with **supertest** sending real HTTP requests to the API and **mongodb-memory-server** running a real MongoDB in memory, so the tests need no setup and check real queries and indexes.
 - **Testing Library** renders the whole web app with a fake `fetch`, and tests click through it like a person would.
+- **Playwright** runs the built app in a real browser, the way the public demo runs it, and clicks through whole journeys: ordering as a customer and accepting the order as the restaurant, menu changes staying inside one demo. Each test also fails on any browser console error.
+- **An OpenAPI 3.1 spec** (`backend/src/openapi.yaml`), served with Swagger UI at `/api/docs`. A contract test checks real responses against it with **Ajv**, so the documentation can't drift from the API.
 - **ESLint and Prettier**, checked in CI along with the tests, the build and the Docker setup.
+
+### Logs
+
+**pino** writes one line per request with a request id, which is also sent back as `X-Request-Id` and included in any `500` response, so a reported error can be found in the logs. JSON in production, readable lines while developing.
 
 ### Still JavaScript
 
