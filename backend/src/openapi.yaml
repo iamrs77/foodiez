@@ -1,0 +1,1150 @@
+openapi: 3.1.0
+info:
+    title: Foodiez API
+    version: 2.0.0
+    description: |
+        The API behind Foodiez, a food ordering app. Customers browse restaurants,
+        fill a cart from one restaurant and place orders; vendors run restaurants
+        and move orders along.
+
+        **Logging in.** `POST /api/auth/login` (or `POST /api/demo`) returns a
+        token. Send it as `Authorization: Bearer <token>`.
+
+        **Demos.** On the public site, `POST /api/demo` gives each visitor a private
+        copy of the demo data for 24 hours. Everything a demo account sees and
+        changes stays inside its own copy.
+
+        **Errors** are JSON: `{ "message": "..." }`, plus `errors` (one per invalid
+        field) for a `400`, and a `requestId` for a `500` that matches the server's
+        log line.
+servers:
+    - url: /
+security: []
+
+tags:
+    - name: Accounts
+    - name: Demo
+    - name: Restaurants
+    - name: Menus
+    - name: Cart
+    - name: Orders
+      description: A customer's orders
+    - name: Restaurant orders
+      description: Orders for a vendor's restaurants
+    - name: Health
+
+paths:
+    /api/health:
+        get:
+            tags: [Health]
+            summary: Whether the API and its database are up
+            operationId: getHealth
+            responses:
+                '200':
+                    description: Up
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/Health' }
+                '503':
+                    description: The database can't be reached
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/Health' }
+
+    /api/config:
+        get:
+            tags: [Demo]
+            summary: What this site offers
+            description: The web app uses this to decide whether to show sign-up, "Try the demo" and the shared demo accounts.
+            operationId: getConfig
+            responses:
+                '200':
+                    description: The site's settings
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/SiteConfig' }
+
+    /api/demo:
+        post:
+            tags: [Demo]
+            summary: Start a private demo
+            description: |
+                Copies the demo accounts, restaurants and orders into a new sandbox that
+                is deleted after 24 hours, and logs the visitor in to it as the
+                customer or as the vendor who owns three of the restaurants.
+                Rate-limited per IP address, and capped in total.
+            operationId: startDemo
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            additionalProperties: false
+                            properties:
+                                as:
+                                    type: string
+                                    enum: [customer, vendor]
+                                    default: customer
+            responses:
+                '201':
+                    description: Logged in to the new demo
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/Session' }
+                '400': { $ref: '#/components/responses/ValidationError' }
+                '404':
+                    description: The demo is turned off on this site
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/Error' }
+                '429': { $ref: '#/components/responses/TooManyRequests' }
+                '503':
+                    description: Too many demos are active; try again later
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/Error' }
+
+    /api/demo/switch:
+        post:
+            tags: [Demo]
+            summary: Switch to the other side of the same demo
+            description: Logs a demo customer in as their demo's vendor, or the other way round.
+            operationId: switchDemoRole
+            security: [{ bearerAuth: [] }]
+            responses:
+                '200':
+                    description: Logged in as the other side
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/Session' }
+                '400':
+                    description: Not a demo account
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/Error' }
+                '401': { $ref: '#/components/responses/Unauthorized' }
+
+    /api/auth/register:
+        post:
+            tags: [Accounts]
+            summary: Create an account
+            operationId: register
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            additionalProperties: false
+                            required: [email, firstName, lastName, password]
+                            properties:
+                                email: { type: string, format: email }
+                                firstName:
+                                    {
+                                        type: string,
+                                        minLength: 1,
+                                        maxLength: 50,
+                                    }
+                                lastName:
+                                    {
+                                        type: string,
+                                        minLength: 1,
+                                        maxLength: 50,
+                                    }
+                                password:
+                                    {
+                                        type: string,
+                                        minLength: 8,
+                                        maxLength: 72,
+                                    }
+                                role: { $ref: '#/components/schemas/Role' }
+            responses:
+                '201':
+                    description: Created and logged in
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/Session' }
+                '400': { $ref: '#/components/responses/ValidationError' }
+                '403':
+                    description: Sign-ups are turned off on this site
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/Error' }
+                '409':
+                    description: An account with this email already exists
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/Error' }
+                '429': { $ref: '#/components/responses/TooManyRequests' }
+
+    /api/auth/login:
+        post:
+            tags: [Accounts]
+            summary: Log in
+            description: A wrong email and a wrong password get the same answer. Rate-limited per IP address.
+            operationId: login
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            additionalProperties: false
+                            required: [email, password]
+                            properties:
+                                email: { type: string, format: email }
+                                password: { type: string }
+            responses:
+                '200':
+                    description: Logged in
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/Session' }
+                '400': { $ref: '#/components/responses/ValidationError' }
+                '401':
+                    description: Wrong email or password
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/Error' }
+                '429': { $ref: '#/components/responses/TooManyRequests' }
+
+    /api/auth/me:
+        get:
+            tags: [Accounts]
+            summary: The logged-in account
+            operationId: getMe
+            security: [{ bearerAuth: [] }]
+            responses:
+                '200':
+                    description: The account
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/User' }
+                '401': { $ref: '#/components/responses/Unauthorized' }
+
+    /api/restaurants:
+        get:
+            tags: [Restaurants]
+            summary: List, search and filter restaurants
+            description: |
+                Anyone can browse. A logged-in demo visitor sees their own demo's
+                restaurants; everyone else sees the showcase. Search matches the start
+                of any word of the name, cuisine or area, using an index.
+            operationId: listRestaurants
+            security: [{}, { bearerAuth: [] }]
+            parameters:
+                - name: search
+                  in: query
+                  description: Words to find, e.g. `north ind` or `piz`
+                  schema: { type: string, maxLength: 50 }
+                - name: cuisine
+                  in: query
+                  description: One cuisine, as listed by `/api/restaurants/cuisines`
+                  schema: { type: string }
+                - name: veg
+                  in: query
+                  description: '`true` for pure veg restaurants only (every dish veg)'
+                  schema: { type: string, enum: ['true'] }
+                - name: sort
+                  in: query
+                  schema:
+                      type: string
+                      enum: [newest, fastest, cheapest]
+                      default: newest
+            responses:
+                '200':
+                    description: The restaurants
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    {
+                                        $ref: '#/components/schemas/RestaurantListItem',
+                                    }
+                '401': { $ref: '#/components/responses/Unauthorized' }
+        post:
+            tags: [Restaurants]
+            summary: Add a restaurant
+            operationId: createRestaurant
+            security: [{ bearerAuth: [] }]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema: { $ref: '#/components/schemas/RestaurantInput' }
+            responses:
+                '201':
+                    description: Added
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/Restaurant' }
+                '400': { $ref: '#/components/responses/ValidationError' }
+                '401': { $ref: '#/components/responses/Unauthorized' }
+                '403': { $ref: '#/components/responses/Forbidden' }
+
+    /api/restaurants/cuisines:
+        get:
+            tags: [Restaurants]
+            summary: The cuisines to filter by
+            description: Every cuisine of the visible restaurants, most common first.
+            operationId: listCuisines
+            security: [{}, { bearerAuth: [] }]
+            responses:
+                '200':
+                    description: The cuisines
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items: { type: string }
+                                example: [Italian, Pizza, South Indian]
+                '401': { $ref: '#/components/responses/Unauthorized' }
+
+    /api/restaurants/mine:
+        get:
+            tags: [Restaurants]
+            summary: The logged-in vendor's restaurants
+            operationId: listMyRestaurants
+            security: [{ bearerAuth: [] }]
+            responses:
+                '200':
+                    description: The restaurants
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    { $ref: '#/components/schemas/Restaurant' }
+                '401': { $ref: '#/components/responses/Unauthorized' }
+                '403': { $ref: '#/components/responses/Forbidden' }
+
+    /api/restaurants/{id}:
+        parameters:
+            - $ref: '#/components/parameters/Id'
+        get:
+            tags: [Restaurants]
+            summary: One restaurant
+            operationId: getRestaurant
+            security: [{}, { bearerAuth: [] }]
+            responses:
+                '200':
+                    description: The restaurant
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/Restaurant' }
+                '400': { $ref: '#/components/responses/BadId' }
+                '404': { $ref: '#/components/responses/NotFound' }
+        patch:
+            tags: [Restaurants]
+            summary: Change a restaurant
+            description: Only its owner. Only the fields sent are changed.
+            operationId: updateRestaurant
+            security: [{ bearerAuth: [] }]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            { $ref: '#/components/schemas/RestaurantChanges' }
+            responses:
+                '200':
+                    description: Changed
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/Restaurant' }
+                '400': { $ref: '#/components/responses/ValidationError' }
+                '401': { $ref: '#/components/responses/Unauthorized' }
+                '403': { $ref: '#/components/responses/Forbidden' }
+                '404': { $ref: '#/components/responses/NotFound' }
+        delete:
+            tags: [Restaurants]
+            summary: Delete a restaurant and its menu
+            description: Only its owner. Its dishes are also removed from every cart; past orders keep their copies.
+            operationId: deleteRestaurant
+            security: [{ bearerAuth: [] }]
+            responses:
+                '204': { description: Deleted }
+                '401': { $ref: '#/components/responses/Unauthorized' }
+                '403': { $ref: '#/components/responses/Forbidden' }
+                '404': { $ref: '#/components/responses/NotFound' }
+
+    /api/restaurants/{id}/dishes:
+        parameters:
+            - $ref: '#/components/parameters/Id'
+        get:
+            tags: [Menus]
+            summary: A restaurant's menu
+            description: In the order they were added; group them by `category` for the menu's sections.
+            operationId: listDishes
+            security: [{}, { bearerAuth: [] }]
+            responses:
+                '200':
+                    description: The dishes
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items: { $ref: '#/components/schemas/Dish' }
+                '404': { $ref: '#/components/responses/NotFound' }
+        post:
+            tags: [Menus]
+            summary: Add a dish
+            operationId: createDish
+            security: [{ bearerAuth: [] }]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema: { $ref: '#/components/schemas/DishInput' }
+            responses:
+                '201':
+                    description: Added
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/Dish' }
+                '400': { $ref: '#/components/responses/ValidationError' }
+                '401': { $ref: '#/components/responses/Unauthorized' }
+                '403': { $ref: '#/components/responses/Forbidden' }
+                '404': { $ref: '#/components/responses/NotFound' }
+                '409':
+                    description: The restaurant already has a dish with that name
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/Error' }
+
+    /api/dishes/{id}:
+        parameters:
+            - $ref: '#/components/parameters/Id'
+        patch:
+            tags: [Menus]
+            summary: Change a dish, e.g. mark it sold out
+            operationId: updateDish
+            security: [{ bearerAuth: [] }]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema: { $ref: '#/components/schemas/DishChanges' }
+            responses:
+                '200':
+                    description: Changed
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/Dish' }
+                '400': { $ref: '#/components/responses/ValidationError' }
+                '401': { $ref: '#/components/responses/Unauthorized' }
+                '403': { $ref: '#/components/responses/Forbidden' }
+                '404': { $ref: '#/components/responses/NotFound' }
+                '409':
+                    description: The restaurant already has a dish with that name
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/Error' }
+        delete:
+            tags: [Menus]
+            summary: Delete a dish
+            operationId: deleteDish
+            security: [{ bearerAuth: [] }]
+            responses:
+                '204': { description: Deleted }
+                '401': { $ref: '#/components/responses/Unauthorized' }
+                '403': { $ref: '#/components/responses/Forbidden' }
+                '404': { $ref: '#/components/responses/NotFound' }
+
+    /api/cart:
+        get:
+            tags: [Cart]
+            summary: The customer's cart
+            operationId: getCart
+            security: [{ bearerAuth: [] }]
+            responses:
+                '200': { $ref: '#/components/responses/Cart' }
+                '401': { $ref: '#/components/responses/Unauthorized' }
+                '403': { $ref: '#/components/responses/Forbidden' }
+        delete:
+            tags: [Cart]
+            summary: Empty the cart
+            operationId: clearCart
+            security: [{ bearerAuth: [] }]
+            responses:
+                '200': { $ref: '#/components/responses/Cart' }
+                '401': { $ref: '#/components/responses/Unauthorized' }
+                '403': { $ref: '#/components/responses/Forbidden' }
+
+    /api/cart/items:
+        post:
+            tags: [Cart]
+            summary: Add a dish, or raise its quantity
+            description: A cart holds dishes from one restaurant, and a sold out dish can't be added.
+            operationId: addToCart
+            security: [{ bearerAuth: [] }]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            additionalProperties: false
+                            required: [dishId]
+                            properties:
+                                dishId:
+                                    { $ref: '#/components/schemas/ObjectId' }
+                                quantity:
+                                    {
+                                        type: integer,
+                                        minimum: 1,
+                                        maximum: 20,
+                                        default: 1,
+                                    }
+            responses:
+                '200': { $ref: '#/components/responses/Cart' }
+                '400': { $ref: '#/components/responses/ValidationError' }
+                '401': { $ref: '#/components/responses/Unauthorized' }
+                '403': { $ref: '#/components/responses/Forbidden' }
+                '404': { $ref: '#/components/responses/NotFound' }
+                '409':
+                    description: The cart has another restaurant's dishes, or the dish is sold out
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/Error' }
+
+    /api/cart/items/{id}:
+        parameters:
+            - $ref: '#/components/parameters/Id'
+        patch:
+            tags: [Cart]
+            summary: Change a quantity
+            operationId: updateCartItem
+            security: [{ bearerAuth: [] }]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            additionalProperties: false
+                            required: [quantity]
+                            properties:
+                                quantity:
+                                    { type: integer, minimum: 1, maximum: 20 }
+            responses:
+                '200': { $ref: '#/components/responses/Cart' }
+                '400': { $ref: '#/components/responses/ValidationError' }
+                '401': { $ref: '#/components/responses/Unauthorized' }
+                '403': { $ref: '#/components/responses/Forbidden' }
+                '404': { $ref: '#/components/responses/NotFound' }
+        delete:
+            tags: [Cart]
+            summary: Remove a dish
+            operationId: removeCartItem
+            security: [{ bearerAuth: [] }]
+            responses:
+                '200': { $ref: '#/components/responses/Cart' }
+                '401': { $ref: '#/components/responses/Unauthorized' }
+                '403': { $ref: '#/components/responses/Forbidden' }
+                '404': { $ref: '#/components/responses/NotFound' }
+
+    /api/orders:
+        get:
+            tags: [Orders]
+            summary: The customer's orders, newest first
+            description: The latest 50.
+            operationId: listOrders
+            security: [{ bearerAuth: [] }]
+            responses:
+                '200':
+                    description: The orders
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items: { $ref: '#/components/schemas/Order' }
+                '401': { $ref: '#/components/responses/Unauthorized' }
+                '403': { $ref: '#/components/responses/Forbidden' }
+        post:
+            tags: [Orders]
+            summary: Order everything in the cart
+            description: |
+                Creates the order and empties the cart in one transaction, so the same
+                cart can't be ordered twice. Prices and the total come from the
+                database. Send an `Idempotency-Key` to make retries safe: a request
+                with a key that was already used returns that order (`200`) instead of
+                placing another.
+            operationId: placeOrder
+            security: [{ bearerAuth: [] }]
+            parameters:
+                - $ref: '#/components/parameters/IdempotencyKey'
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            additionalProperties: false
+                            required: [delivery]
+                            properties:
+                                delivery:
+                                    { $ref: '#/components/schemas/Delivery' }
+            responses:
+                '201':
+                    description: Placed
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/Order' }
+                '200':
+                    description: Already placed with this Idempotency-Key
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/Order' }
+                '400':
+                    description: The cart is empty, or the delivery details are invalid
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/Error' }
+                '401': { $ref: '#/components/responses/Unauthorized' }
+                '403': { $ref: '#/components/responses/Forbidden' }
+                '409':
+                    description: A dish in the cart sold out after it was added
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/Error' }
+
+    /api/orders/{id}:
+        parameters:
+            - $ref: '#/components/parameters/Id'
+        get:
+            tags: [Orders]
+            summary: One of the customer's orders, for tracking it
+            operationId: getOrder
+            security: [{ bearerAuth: [] }]
+            responses:
+                '200':
+                    description: The order
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/Order' }
+                '401': { $ref: '#/components/responses/Unauthorized' }
+                '403': { $ref: '#/components/responses/Forbidden' }
+                '404': { $ref: '#/components/responses/NotFound' }
+
+    /api/orders/{id}/cancel:
+        parameters:
+            - $ref: '#/components/parameters/Id'
+        post:
+            tags: [Orders]
+            summary: Cancel an order the restaurant hasn't accepted yet
+            operationId: cancelOrder
+            security: [{ bearerAuth: [] }]
+            responses:
+                '200':
+                    description: Cancelled
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/Order' }
+                '401': { $ref: '#/components/responses/Unauthorized' }
+                '403': { $ref: '#/components/responses/Forbidden' }
+                '404': { $ref: '#/components/responses/NotFound' }
+                '409':
+                    description: The restaurant already accepted it
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/Error' }
+
+    /api/vendor/orders:
+        get:
+            tags: [Restaurant orders]
+            summary: Orders for the vendor's restaurants
+            description: '`active` (the default): still to deal with, oldest first. `past`: delivered or cancelled, the latest 50.'
+            operationId: listVendorOrders
+            security: [{ bearerAuth: [] }]
+            parameters:
+                - name: view
+                  in: query
+                  schema:
+                      { type: string, enum: [active, past], default: active }
+            responses:
+                '200':
+                    description: The orders
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items: { $ref: '#/components/schemas/Order' }
+                '401': { $ref: '#/components/responses/Unauthorized' }
+                '403': { $ref: '#/components/responses/Forbidden' }
+
+    /api/vendor/orders/{id}:
+        parameters:
+            - $ref: '#/components/parameters/Id'
+        patch:
+            tags: [Restaurant orders]
+            summary: Move an order to its next step
+            description: |
+                placed → accepted or cancelled; accepted → preparing or cancelled;
+                preparing → out_for_delivery; out_for_delivery → delivered. Applied
+                only if the order hasn't changed since it was read, so two changes at
+                once can't both win.
+            operationId: updateOrderStatus
+            security: [{ bearerAuth: [] }]
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            additionalProperties: false
+                            required: [status]
+                            properties:
+                                status:
+                                    { $ref: '#/components/schemas/OrderStatus' }
+            responses:
+                '200':
+                    description: Moved
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/Order' }
+                '400': { $ref: '#/components/responses/ValidationError' }
+                '401': { $ref: '#/components/responses/Unauthorized' }
+                '403': { $ref: '#/components/responses/Forbidden' }
+                '404': { $ref: '#/components/responses/NotFound' }
+                '409':
+                    description: That step doesn't follow the order's status, or someone changed it first
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/Error' }
+
+components:
+    securitySchemes:
+        bearerAuth:
+            type: http
+            scheme: bearer
+            bearerFormat: JWT
+
+    parameters:
+        Id:
+            name: id
+            in: path
+            required: true
+            schema: { $ref: '#/components/schemas/ObjectId' }
+        IdempotencyKey:
+            name: Idempotency-Key
+            in: header
+            description: A key the client makes up for one checkout, and sends again on retries
+            schema: { type: string, pattern: '^[\w-]{8,100}$' }
+
+    responses:
+        ValidationError:
+            description: Some fields are missing or invalid
+            content:
+                application/json:
+                    schema: { $ref: '#/components/schemas/Error' }
+        BadId:
+            description: The id isn't a valid id
+            content:
+                application/json:
+                    schema: { $ref: '#/components/schemas/Error' }
+        Unauthorized:
+            description: Not logged in, the login has expired, or the demo has ended
+            content:
+                application/json:
+                    schema: { $ref: '#/components/schemas/Error' }
+        Forbidden:
+            description: The account can't do this (the wrong role, or not the owner)
+            content:
+                application/json:
+                    schema: { $ref: '#/components/schemas/Error' }
+        NotFound:
+            description: Not found, or not visible to this account
+            content:
+                application/json:
+                    schema: { $ref: '#/components/schemas/Error' }
+        TooManyRequests:
+            description: Too many attempts from this IP address; try again later
+            content:
+                application/json:
+                    schema: { $ref: '#/components/schemas/Error' }
+        Cart:
+            description: The whole cart, after the change
+            content:
+                application/json:
+                    schema: { $ref: '#/components/schemas/Cart' }
+
+    schemas:
+        ObjectId:
+            type: string
+            pattern: '^[0-9a-f]{24}$'
+        DateTime:
+            type: string
+            format: date-time
+        Role:
+            type: string
+            enum: [customer, vendor]
+            default: customer
+        Image:
+            description: A photo; `''` for none, one of the app's demo photos (`/images/...`), or an https link
+            type: string
+            maxLength: 500
+
+        Error:
+            type: object
+            additionalProperties: false
+            required: [message]
+            properties:
+                message: { type: string }
+                errors:
+                    type: array
+                    items:
+                        type: object
+                        additionalProperties: false
+                        required: [field, message]
+                        properties:
+                            field: { type: string, example: delivery.phone }
+                            message: { type: string }
+                requestId:
+                    type: string
+                    description: For a 500; the same id is in the server's log line
+
+        Health:
+            type: object
+            additionalProperties: false
+            required: [status]
+            properties:
+                status: { type: string, enum: [ok, database unavailable] }
+
+        SiteConfig:
+            type: object
+            additionalProperties: false
+            required:
+                [signupsEnabled, demoEnabled, demoAccountsLogin, demoHours]
+            properties:
+                signupsEnabled: { type: boolean }
+                demoEnabled: { type: boolean }
+                demoAccountsLogin:
+                    type: boolean
+                    description: Whether the shared demo accounts (password123) can log in
+                demoHours: { type: number }
+
+        User:
+            type: object
+            additionalProperties: false
+            required:
+                [id, email, firstName, lastName, role, createdAt, updatedAt]
+            properties:
+                id: { $ref: '#/components/schemas/ObjectId' }
+                email: { type: string, format: email }
+                firstName: { type: string }
+                lastName: { type: string }
+                role: { $ref: '#/components/schemas/Role' }
+                createdAt: { $ref: '#/components/schemas/DateTime' }
+                updatedAt: { $ref: '#/components/schemas/DateTime' }
+                expiresAt:
+                    $ref: '#/components/schemas/DateTime'
+                    description: Only for demo accounts, when the demo (and the login) ends
+
+        Session:
+            type: object
+            additionalProperties: false
+            required: [token, user]
+            properties:
+                token:
+                    type: string
+                    description: 'Send it as `Authorization: Bearer <token>`'
+                user: { $ref: '#/components/schemas/User' }
+
+        RestaurantInput:
+            type: object
+            additionalProperties: false
+            required:
+                [name, cuisine, location, priceForTwo, deliveryTimeMinutes]
+            properties:
+                name: { type: string, minLength: 2, maxLength: 80 }
+                cuisine:
+                    {
+                        type: string,
+                        minLength: 2,
+                        maxLength: 60,
+                        example: 'Italian, Pizza',
+                    }
+                location: { type: string, minLength: 2, maxLength: 120 }
+                priceForTwo: { type: integer, minimum: 0, maximum: 100000 }
+                deliveryTimeMinutes: { type: integer, minimum: 5, maximum: 180 }
+                image: { $ref: '#/components/schemas/Image' }
+
+        RestaurantChanges:
+            description: Any of the restaurant's fields; at least one
+            type: object
+            additionalProperties: false
+            minProperties: 1
+            properties:
+                name: { type: string, minLength: 2, maxLength: 80 }
+                cuisine: { type: string, minLength: 2, maxLength: 60 }
+                location: { type: string, minLength: 2, maxLength: 120 }
+                priceForTwo: { type: integer, minimum: 0, maximum: 100000 }
+                deliveryTimeMinutes: { type: integer, minimum: 5, maximum: 180 }
+                image: { $ref: '#/components/schemas/Image' }
+
+        Restaurant:
+            type: object
+            additionalProperties: false
+            required:
+                [
+                    id,
+                    name,
+                    cuisine,
+                    location,
+                    priceForTwo,
+                    deliveryTimeMinutes,
+                    owner,
+                    image,
+                    createdAt,
+                    updatedAt,
+                ]
+            properties:
+                id: { $ref: '#/components/schemas/ObjectId' }
+                name: { type: string }
+                cuisine: { type: string }
+                location: { type: string }
+                priceForTwo: { type: integer }
+                deliveryTimeMinutes: { type: integer }
+                owner: { $ref: '#/components/schemas/ObjectId' }
+                image: { $ref: '#/components/schemas/Image' }
+                createdAt: { $ref: '#/components/schemas/DateTime' }
+                updatedAt: { $ref: '#/components/schemas/DateTime' }
+                expiresAt:
+                    $ref: '#/components/schemas/DateTime'
+                    description: Only in a demo
+
+        RestaurantListItem:
+            description: A restaurant in the list, with whether it's pure veg
+            type: object
+            additionalProperties: false
+            required:
+                [
+                    id,
+                    name,
+                    cuisine,
+                    location,
+                    priceForTwo,
+                    deliveryTimeMinutes,
+                    owner,
+                    image,
+                    createdAt,
+                    updatedAt,
+                    pureVeg,
+                ]
+            properties:
+                id: { $ref: '#/components/schemas/ObjectId' }
+                name: { type: string }
+                cuisine: { type: string }
+                location: { type: string }
+                priceForTwo: { type: integer }
+                deliveryTimeMinutes: { type: integer }
+                owner: { $ref: '#/components/schemas/ObjectId' }
+                image: { $ref: '#/components/schemas/Image' }
+                createdAt: { $ref: '#/components/schemas/DateTime' }
+                updatedAt: { $ref: '#/components/schemas/DateTime' }
+                expiresAt:
+                    $ref: '#/components/schemas/DateTime'
+                    description: Only in a demo
+                pureVeg:
+                    type: boolean
+                    description: Every dish on its menu is veg (and it has at least one)
+
+        DishInput:
+            type: object
+            additionalProperties: false
+            required: [name, price]
+            properties:
+                name: { type: string, minLength: 2, maxLength: 80 }
+                description: { type: string, maxLength: 300, default: '' }
+                price: { type: number, minimum: 0, maximum: 100000 }
+                isVeg: { type: boolean, default: true }
+                category:
+                    type: string
+                    minLength: 1
+                    maxLength: 40
+                    default: Menu
+                    description: The menu section it's listed under, e.g. Starters
+                available:
+                    type: boolean
+                    default: true
+                    description: false while it's sold out
+                image: { $ref: '#/components/schemas/Image' }
+
+        DishChanges:
+            description: Any of the dish's fields; at least one
+            type: object
+            additionalProperties: false
+            minProperties: 1
+            properties:
+                name: { type: string, minLength: 2, maxLength: 80 }
+                description: { type: string, maxLength: 300 }
+                price: { type: number, minimum: 0, maximum: 100000 }
+                isVeg: { type: boolean }
+                category: { type: string, minLength: 1, maxLength: 40 }
+                available: { type: boolean }
+                image: { $ref: '#/components/schemas/Image' }
+
+        Dish:
+            type: object
+            additionalProperties: false
+            required:
+                [
+                    id,
+                    restaurant,
+                    name,
+                    description,
+                    price,
+                    isVeg,
+                    category,
+                    available,
+                    image,
+                    createdAt,
+                    updatedAt,
+                ]
+            properties:
+                id: { $ref: '#/components/schemas/ObjectId' }
+                restaurant: { $ref: '#/components/schemas/ObjectId' }
+                name: { type: string }
+                description: { type: string }
+                price: { type: number }
+                isVeg: { type: boolean }
+                category: { type: string }
+                available: { type: boolean }
+                image: { $ref: '#/components/schemas/Image' }
+                createdAt: { $ref: '#/components/schemas/DateTime' }
+                updatedAt: { $ref: '#/components/schemas/DateTime' }
+                expiresAt:
+                    $ref: '#/components/schemas/DateTime'
+                    description: Only in a demo
+
+        Cart:
+            type: object
+            additionalProperties: false
+            required: [restaurant, items, total]
+            properties:
+                restaurant:
+                    description: The restaurant the cart's dishes come from; null when it's empty
+                    oneOf:
+                        - type: 'null'
+                        - type: object
+                          additionalProperties: false
+                          required: [id, name]
+                          properties:
+                              id: { $ref: '#/components/schemas/ObjectId' }
+                              name: { type: string }
+                items:
+                    type: array
+                    items:
+                        type: object
+                        additionalProperties: false
+                        required: [id, quantity, dish]
+                        properties:
+                            id: { $ref: '#/components/schemas/ObjectId' }
+                            quantity: { type: integer, minimum: 1, maximum: 20 }
+                            dish:
+                                type: object
+                                additionalProperties: false
+                                required:
+                                    [
+                                        id,
+                                        name,
+                                        description,
+                                        price,
+                                        isVeg,
+                                        available,
+                                        image,
+                                    ]
+                                properties:
+                                    id:
+                                        {
+                                            $ref: '#/components/schemas/ObjectId',
+                                        }
+                                    name: { type: string }
+                                    description: { type: string }
+                                    price: { type: number }
+                                    isVeg: { type: boolean }
+                                    available: { type: boolean }
+                                    image:
+                                        { $ref: '#/components/schemas/Image' }
+                total: { type: number }
+
+        Delivery:
+            type: object
+            additionalProperties: false
+            required: [address, phone]
+            properties:
+                address: { type: string, minLength: 5, maxLength: 300 }
+                phone: { type: string, example: '+91 98450 12345' }
+                note: { type: string, maxLength: 200, default: '' }
+
+        OrderStatus:
+            type: string
+            enum:
+                [
+                    placed,
+                    accepted,
+                    preparing,
+                    out_for_delivery,
+                    delivered,
+                    cancelled,
+                ]
+
+        Order:
+            type: object
+            additionalProperties: false
+            required:
+                [
+                    id,
+                    user,
+                    customerName,
+                    restaurant,
+                    restaurantName,
+                    items,
+                    total,
+                    delivery,
+                    status,
+                    statusHistory,
+                    createdAt,
+                    updatedAt,
+                ]
+            properties:
+                id: { $ref: '#/components/schemas/ObjectId' }
+                user: { $ref: '#/components/schemas/ObjectId' }
+                customerName: { type: string }
+                restaurant: { $ref: '#/components/schemas/ObjectId' }
+                restaurantName:
+                    type: string
+                    description: Copied when the order was placed
+                items:
+                    description: Copies of each dish when the order was placed, so later menu changes don't change the order
+                    type: array
+                    items:
+                        type: object
+                        additionalProperties: false
+                        required: [dish, name, price, quantity, isVeg]
+                        properties:
+                            dish: { $ref: '#/components/schemas/ObjectId' }
+                            name: { type: string }
+                            price: { type: number }
+                            quantity: { type: integer, minimum: 1 }
+                            isVeg: { type: boolean }
+                total: { type: number }
+                delivery: { $ref: '#/components/schemas/Delivery' }
+                status: { $ref: '#/components/schemas/OrderStatus' }
+                statusHistory:
+                    description: When the order reached each status
+                    type: array
+                    items:
+                        type: object
+                        additionalProperties: false
+                        required: [status, at]
+                        properties:
+                            status: { $ref: '#/components/schemas/OrderStatus' }
+                            at: { $ref: '#/components/schemas/DateTime' }
+                createdAt: { $ref: '#/components/schemas/DateTime' }
+                updatedAt: { $ref: '#/components/schemas/DateTime' }
+                expiresAt:
+                    $ref: '#/components/schemas/DateTime'
+                    description: Only in a demo

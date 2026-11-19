@@ -5,6 +5,7 @@ import express from 'express';
 import helmet from 'helmet';
 import mongoose from 'mongoose';
 import { config } from './config.js';
+import { apiDocs } from './docs.js';
 import { requestLogger } from './logger.js';
 import { requireAuth, requireRole } from './middleware/auth.js';
 import { errorHandler, notFound } from './middleware/errors.js';
@@ -42,6 +43,7 @@ export function createApp() {
 		});
 	});
 
+	app.use('/api', apiDocs());
 	app.use('/api', demoRoutes);
 	app.use('/api/auth', authRoutes);
 	app.use('/api/restaurants', restaurantRoutes);
