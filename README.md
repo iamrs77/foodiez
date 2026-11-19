@@ -179,6 +179,8 @@ GitHub Actions runs all of them on every push, along with lint, format checks an
 
 The full description is in [`backend/src/openapi.yaml`](backend/src/openapi.yaml), and the running API serves it with Swagger UI at **`/api/docs`**, where you can try each endpoint.
 
+![The API's documentation in Swagger UI](docs/screenshots/api-docs.webp)
+
 | Method | Path                            | Who       | What it does                                                                  |
 | ------ | ------------------------------- | --------- | ----------------------------------------------------------------------------- |
 | POST   | `/api/auth/register`            | anyone    | Create an account                                                             |
