@@ -21,6 +21,12 @@ export const demoUsers = [
 		lastName: 'Mehta',
 		role: 'vendor',
 	},
+	{
+		email: 'customer2@foodiez.dev',
+		firstName: 'Rahul',
+		lastName: 'Verma',
+		role: 'customer',
+	},
 ];
 
 export const demoRestaurants = [
@@ -212,19 +218,53 @@ export const demoRestaurants = [
 	},
 ];
 
-// past orders for the demo customer, so Order History isn't empty
+const PRIYA_DELIVERY = {
+	address:
+		'Flat 302, Lakeview Apartments, 5th Cross, Koramangala, Bengaluru 560034',
+	phone: '+91 98450 12345',
+	note: '',
+};
+
+// orders already placed: two delivered ones in the demo customer's history, and
+// a new one from another customer, waiting for Asha (the demo restaurant owner)
+// to accept it
 export const demoOrders = [
 	{
+		customerEmail: 'customer2@foodiez.dev',
+		restaurantName: 'Napoli Slice',
+		minutesAgo: 4,
+		status: 'placed',
+		delivery: {
+			address:
+				'12, 2nd Main, HAL 2nd Stage, Indiranagar, Bengaluru 560038',
+			phone: '+91 99001 54321',
+			note: 'Please ring the bell twice',
+		},
+		items: [
+			{ name: 'Margherita Pizza', quantity: 1 },
+			{ name: 'Tiramisu', quantity: 2 },
+		],
+	},
+	{
+		customerEmail: 'customer@foodiez.dev',
 		restaurantName: 'Dosa Corner',
-		daysAgo: 2,
+		minutesAgo: 2 * 24 * 60,
+		status: 'delivered',
+		delivery: PRIYA_DELIVERY,
 		items: [
 			{ name: 'Masala Dosa', quantity: 2 },
 			{ name: 'Filter Coffee', quantity: 2 },
 		],
 	},
 	{
+		customerEmail: 'customer@foodiez.dev',
 		restaurantName: 'Spice Route',
-		daysAgo: 6,
+		minutesAgo: 6 * 24 * 60,
+		status: 'delivered',
+		delivery: {
+			...PRIYA_DELIVERY,
+			note: 'Leave it with the security guard',
+		},
 		items: [
 			{ name: 'Paneer Butter Masala', quantity: 1 },
 			{ name: 'Garlic Naan', quantity: 3 },

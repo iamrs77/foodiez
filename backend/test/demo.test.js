@@ -12,7 +12,13 @@ import { Restaurant } from '../src/models/Restaurant.js';
 import { Sandbox } from '../src/models/Sandbox.js';
 import { User } from '../src/models/User.js';
 import { seedDemoData } from '../src/seed/seed.js';
-import { api, createDish, createRestaurant, signUp } from './helpers.js';
+import {
+	api,
+	createDish,
+	createRestaurant,
+	placeOrder,
+	signUp,
+} from './helpers.js';
 
 const HOUR = 60 * 60 * 1000;
 
@@ -128,7 +134,7 @@ describe('try the demo', () => {
 			.set(demo.auth)
 			.send({ dishId: dishes.body[0].id, quantity: 2 })
 			.expect(200);
-		await api.post('/api/orders').set(demo.auth).expect(201);
+		await placeOrder(demo).expect(201);
 
 		const orders = await api.get('/api/orders').set(demo.auth).expect(200);
 		expect(orders.body).toHaveLength(3);
@@ -205,7 +211,7 @@ describe('try the demo', () => {
 		// real accounts and restaurants never expire
 		expect(
 			await User.countDocuments({ expiresAt: { $exists: true } }),
-		).toBe(3);
+		).toBe(4);
 		const real = await Restaurant.findOne({ name: 'Real Place' });
 		expect(real.expiresAt).toBeUndefined();
 		expect(real.sandbox).toBeNull();

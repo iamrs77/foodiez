@@ -11,7 +11,28 @@ import {
 	demoUsers,
 } from './demoData.js';
 
-const DAY = 24 * 60 * 60 * 1000;
+const MINUTE = 60 * 1000;
+
+// minutes after placing an order that it reached each status, for demo orders
+const TIMELINE = [
+	['placed', 0],
+	['accepted', 3],
+	['preparing', 6],
+	['out_for_delivery', 25],
+	['delivered', 45],
+];
+
+// the status changes of a demo order that has got as far as `status`
+function statusTimeline(status, placedAt) {
+	const reached = TIMELINE.slice(
+		0,
+		TIMELINE.findIndex(([s]) => s === status) + 1,
+	);
+	return reached.map(([s, minutes]) => ({
+		status: s,
+		at: new Date(placedAt.getTime() + minutes * MINUTE),
+	}));
+}
 
 // a demo account's email inside a sandbox, e.g. vendor+<sandbox id>@foodiez.dev,
 // so every visitor's copy of the account has its own unique email
@@ -65,10 +86,12 @@ export async function loadDemoData({ passwordHash, sandbox = null }) {
 		});
 	}
 
-	const customer = users.find((user) => user.role === 'customer');
-	for (const { restaurantName, daysAgo, items } of demoOrders) {
-		const { restaurant, dishes } = restaurantByName.get(restaurantName);
-		const orderItems = items.map(({ name, quantity }) => {
+	for (const order of demoOrders) {
+		const { restaurant, dishes } = restaurantByName.get(
+			order.restaurantName,
+		);
+		const customer = userByDemoEmail.get(order.customerEmail);
+		const orderItems = order.items.map(({ name, quantity }) => {
 			const dish = dishes.find((d) => d.name === name);
 			return {
 				dish: dish._id,
@@ -78,20 +101,30 @@ export async function loadDemoData({ passwordHash, sandbox = null }) {
 				quantity,
 			};
 		});
-		const order = await Order.create({
+		const placedAt = new Date(Date.now() - order.minutesAgo * MINUTE);
+		const statusHistory = statusTimeline(order.status, placedAt);
+		const saved = await Order.create({
 			user: customer._id,
+			customerName: `${customer.firstName} ${customer.lastName}`,
 			restaurant: restaurant._id,
 			restaurantName: restaurant.name,
 			items: orderItems,
 			total: orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0),
+			delivery: order.delivery,
+			status: order.status,
+			statusHistory,
 			...stamp,
 		});
 
 		// timestamps can't be set through Mongoose, so date the order in the past directly
-		const placedAt = new Date(Date.now() - daysAgo * DAY);
 		await Order.collection.updateOne(
-			{ _id: order._id },
-			{ $set: { createdAt: placedAt, updatedAt: placedAt } },
+			{ _id: saved._id },
+			{
+				$set: {
+					createdAt: placedAt,
+					updatedAt: statusHistory.at(-1).at,
+				},
+			},
 		);
 	}
 

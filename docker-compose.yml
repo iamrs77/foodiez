@@ -3,15 +3,25 @@
 # Only the database, for "npm run dev":    docker compose up -d db
 
 services:
-  # MongoDB, with data kept in a Docker volume between restarts
+  # MongoDB, with data kept in a Docker volume between restarts. It runs as a
+  # one-member replica set, like MongoDB Atlas, because orders use transactions.
   db:
     image: mongo:8
+    command: ['--replSet', 'rs0', '--bind_ip_all']
     ports:
       - 27017:27017
     volumes:
       - mongo-data:/data/db
+    # starts the replica set on the first run, then is healthy once it's the primary
     healthcheck:
-      test: ['CMD', 'mongosh', '--quiet', '--eval', 'db.adminCommand("ping").ok']
+      test:
+        [
+          'CMD',
+          'mongosh',
+          '--quiet',
+          '--eval',
+          "try { rs.status() } catch (e) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'db:27017' }] }) } quit(db.hello().isWritablePrimary ? 0 : 1)",
+        ]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -20,7 +30,7 @@ services:
   api:
     build: ./backend
     environment:
-      MONGODB_URI: mongodb://db:27017/foodiez
+      MONGODB_URI: mongodb://db:27017/foodiez?replicaSet=rs0
       JWT_SECRET: ${JWT_SECRET:-change-me-to-a-long-random-string}
       SEED_DEMO_DATA: 'true'
       TRUST_PROXY: '1'

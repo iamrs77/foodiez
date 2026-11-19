@@ -58,3 +58,18 @@ export async function createDish(vendor, restaurantId, overrides = {}) {
 		.expect(201);
 	return res.body;
 }
+
+export const DELIVERY = {
+	address: '42, 1st Cross, Jayanagar, Bengaluru 560011',
+	phone: '+91 98765 43210',
+	note: 'Ring the bell',
+};
+
+// places an order for everything in the user's cart
+export function placeOrder(user, { delivery = DELIVERY, key } = {}) {
+	const req = api.post('/api/orders').set(user.auth);
+	if (key) {
+		req.set('Idempotency-Key', key);
+	}
+	return req.send({ delivery });
+}

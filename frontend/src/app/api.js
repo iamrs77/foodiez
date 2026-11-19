@@ -48,7 +48,7 @@ async function storeCart(_arg, { dispatch, queryFulfilled }) {
 
 export const api = createApi({
 	baseQuery,
-	tagTypes: ['Restaurant', 'Dish', 'Cart', 'Order'],
+	tagTypes: ['Restaurant', 'Dish', 'Cart', 'Order', 'VendorOrder'],
 	endpoints: (build) => ({
 		login: build.mutation({
 			query: (body) => ({ url: '/auth/login', method: 'POST', body }),
@@ -156,9 +156,41 @@ export const api = createApi({
 			query: () => '/orders',
 			providesTags: ['Order'],
 		}),
+		getOrder: build.query({
+			query: (id) => `/orders/${id}`,
+			providesTags: ['Order'],
+		}),
+		// the same idempotencyKey for retries of one checkout, so a repeated
+		// request (say, after a timeout) can't place the order twice
 		placeOrder: build.mutation({
-			query: () => ({ url: '/orders', method: 'POST' }),
+			query: ({ delivery, idempotencyKey }) => ({
+				url: '/orders',
+				method: 'POST',
+				body: { delivery },
+				headers: { 'Idempotency-Key': idempotencyKey },
+			}),
 			invalidatesTags: ['Order', 'Cart'],
+		}),
+		cancelOrder: build.mutation({
+			query: (id) => ({ url: `/orders/${id}/cancel`, method: 'POST' }),
+			invalidatesTags: ['Order'],
+		}),
+
+		// a vendor's incoming orders: view is 'active' or 'past'
+		getVendorOrders: build.query({
+			query: (view = 'active') => ({
+				url: '/vendor/orders',
+				params: view === 'past' ? { view } : undefined,
+			}),
+			providesTags: ['VendorOrder'],
+		}),
+		updateOrderStatus: build.mutation({
+			query: ({ id, status }) => ({
+				url: `/vendor/orders/${id}`,
+				method: 'PATCH',
+				body: { status },
+			}),
+			invalidatesTags: ['VendorOrder'],
 		}),
 	}),
 });
@@ -185,5 +217,9 @@ export const {
 	useRemoveCartItemMutation,
 	useClearCartMutation,
 	useGetOrdersQuery,
+	useGetOrderQuery,
 	usePlaceOrderMutation,
+	useCancelOrderMutation,
+	useGetVendorOrdersQuery,
+	useUpdateOrderStatusMutation,
 } = api;

@@ -5,12 +5,14 @@ import CartPage from './pages/CartPage';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import NotFoundPage from './pages/NotFoundPage';
+import OrderPage from './pages/OrderPage';
 import OrdersPage from './pages/OrdersPage';
 import RegisterPage from './pages/RegisterPage';
 import RestaurantPage from './pages/RestaurantPage';
 import DishFormPage from './pages/vendor/DishFormPage';
 import MyRestaurantsPage from './pages/vendor/MyRestaurantsPage';
 import RestaurantFormPage from './pages/vendor/RestaurantFormPage';
+import VendorOrdersPage from './pages/vendor/VendorOrdersPage';
 
 export default function App() {
 	return (
@@ -25,10 +27,12 @@ export default function App() {
 				<Route element={<RequireRole role="customer" />}>
 					<Route path="cart" element={<CartPage />} />
 					<Route path="orders" element={<OrdersPage />} />
+					<Route path="orders/:id" element={<OrderPage />} />
 				</Route>
 
 				<Route path="vendor" element={<RequireRole role="vendor" />}>
 					<Route index element={<MyRestaurantsPage />} />
+					<Route path="orders" element={<VendorOrdersPage />} />
 					<Route
 						path="restaurants/new"
 						element={<RestaurantFormPage />}

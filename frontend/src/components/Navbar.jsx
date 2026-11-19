@@ -1,7 +1,13 @@
-import { LogOut, ReceiptText, ShoppingBasket, Store } from 'lucide-react';
+import {
+	ConciergeBell,
+	LogOut,
+	ReceiptText,
+	ShoppingBasket,
+	Store,
+} from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, NavLink, useNavigate } from 'react-router';
-import { logout, useGetCartQuery } from '../app/api';
+import { logout, useGetCartQuery, useGetVendorOrdersQuery } from '../app/api';
 import { selectUser } from '../features/auth/authSlice';
 import { useSiteConfig } from '../lib/useSiteConfig';
 import { Logo } from './Logo';
@@ -29,6 +35,33 @@ function CartLink() {
 				)}
 			</span>
 			<span className="hidden sm:inline">Cart</span>
+		</NavLink>
+	);
+}
+
+// the vendor's orders, with how many new ones are waiting to be accepted
+function VendorOrdersLink() {
+	const { data: orders } = useGetVendorOrdersQuery('active', {
+		pollingInterval: 15_000,
+		skipPollingIfUnfocused: true,
+	});
+	const waiting = orders?.filter((o) => o.status === 'placed').length ?? 0;
+
+	return (
+		<NavLink
+			to="/vendor/orders"
+			className={linkClass}
+			aria-label={`Orders, ${waiting} new`}
+		>
+			<span className="relative mr-1">
+				<ConciergeBell size={20} />
+				{waiting > 0 && (
+					<span className="absolute -top-2 -right-2 min-w-5 rounded-full bg-red-600 px-1 text-center text-xs leading-5 text-white">
+						{waiting}
+					</span>
+				)}
+			</span>
+			<span className="hidden sm:inline">Orders</span>
 		</NavLink>
 	);
 }
@@ -82,12 +115,15 @@ export default function Navbar() {
 							</>
 						)}
 						{user.role === 'vendor' && (
-							<NavLink to="/vendor" className={linkClass}>
-								<Store size={20} />
-								<span className="hidden sm:inline">
-									My restaurants
-								</span>
-							</NavLink>
+							<>
+								<VendorOrdersLink />
+								<NavLink to="/vendor" end className={linkClass}>
+									<Store size={20} />
+									<span className="hidden sm:inline">
+										My restaurants
+									</span>
+								</NavLink>
+							</>
 						)}
 						<span className="hidden px-2 text-sm text-gray-500 md:inline">
 							Hi, {user.firstName}

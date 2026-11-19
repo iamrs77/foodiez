@@ -13,6 +13,7 @@ import demoRoutes from './routes/demo.js';
 import dishRoutes from './routes/dishes.js';
 import orderRoutes from './routes/orders.js';
 import restaurantRoutes from './routes/restaurants.js';
+import vendorOrderRoutes from './routes/vendorOrders.js';
 
 export function createApp() {
 	const app = express();
@@ -37,6 +38,12 @@ export function createApp() {
 	app.use('/api/dishes', dishRoutes);
 	app.use('/api/cart', requireAuth, requireRole('customer'), cartRoutes);
 	app.use('/api/orders', requireAuth, requireRole('customer'), orderRoutes);
+	app.use(
+		'/api/vendor/orders',
+		requireAuth,
+		requireRole('vendor'),
+		vendorOrderRoutes,
+	);
 	app.use('/api', notFound);
 
 	if (config.WEB_APP_DIR) {

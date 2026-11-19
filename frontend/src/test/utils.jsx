@@ -47,6 +47,7 @@ const json = (status, data) =>
 	});
 
 // fakes the API: handlers look like { 'POST /api/auth/login': ({ body }) => [200, data] }
+// (they also get the request's url and headers)
 // returns the spy, so tests can check which requests were made
 export function mockApi(handlers) {
 	return vi
@@ -65,6 +66,7 @@ export function mockApi(handlers) {
 			const [status, data] = await handler({
 				body: text ? JSON.parse(text) : undefined,
 				url,
+				headers: request.headers,
 			});
 			return json(status, data);
 		});

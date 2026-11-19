@@ -1,24 +1,33 @@
 import { Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import {
 	useGetCartQuery,
+	useGetOrdersQuery,
 	usePlaceOrderMutation,
 	useRemoveCartItemMutation,
 	useUpdateCartItemMutation,
 } from '../app/api';
 import Alert from '../components/Alert';
 import EmptyState from '../components/EmptyState';
+import Field from '../components/Field';
 import { SkeletonRows } from '../components/Loading';
 import QuantityStepper from '../components/QuantityStepper';
 import VegMark from '../components/VegMark';
-import { getErrorMessage } from '../lib/errors';
+import { getErrorMessage, getFieldErrors } from '../lib/errors';
 import { formatPrice } from '../lib/format';
 
 export default function CartPage() {
 	const navigate = useNavigate();
 	const { data: cart, isLoading, error } = useGetCartQuery();
-	const [placeOrder, { isLoading: isPlacing }] = usePlaceOrderMutation();
+	const [placeOrder, { isLoading: isPlacing, error: placeError }] =
+		usePlaceOrderMutation();
+	// the last order's address and phone, so a regular doesn't type them again
+	const { data: orders } = useGetOrdersQuery();
+	const [delivery, setDelivery] = useState(null);
+	// one key per checkout: clicking again after a timeout retries the same
+	// order instead of placing a second one
+	const idempotencyKey = useRef(null);
 	const [updateCartItem] = useUpdateCartItemMutation();
 	const [removeCartItem] = useRemoveCartItemMutation();
 	const [actionError, setActionError] = useState(null);
@@ -62,11 +71,30 @@ export default function CartPage() {
 				: updateCartItem({ id: item.id, quantity }).unwrap(),
 		);
 
-	const handlePlaceOrder = () =>
-		run(async () => {
-			const order = await placeOrder().unwrap();
-			navigate('/orders', { state: { placedOrderId: order.id } });
-		});
+	const last = orders?.[0]?.delivery;
+	const form = delivery ?? {
+		address: last?.address ?? '',
+		phone: last?.phone ?? '',
+		note: '',
+	};
+	const update = (field) => (event) =>
+		setDelivery({ ...form, [field]: event.target.value });
+	const fieldErrors = getFieldErrors(placeError);
+
+	const handlePlaceOrder = async (event) => {
+		event.preventDefault();
+		idempotencyKey.current ??= crypto.randomUUID();
+		try {
+			const order = await placeOrder({
+				delivery: form,
+				idempotencyKey: idempotencyKey.current,
+			}).unwrap();
+			idempotencyKey.current = null;
+			navigate(`/orders/${order.id}`, { state: { justPlaced: true } });
+		} catch {
+			// shown from `placeError` below
+		}
+	};
 
 	return (
 		<div className="grid items-start gap-8 md:grid-cols-[1fr_320px]">
@@ -143,14 +171,74 @@ export default function CartPage() {
 						<dd>{formatPrice(cart.total)}</dd>
 					</div>
 				</dl>
-				<button
-					type="button"
-					className="btn btn-primary mt-6 w-full py-3"
-					onClick={handlePlaceOrder}
-					disabled={isPlacing}
+				<form
+					onSubmit={handlePlaceOrder}
+					className="mt-6 border-t border-gray-200 pt-4"
 				>
-					{isPlacing ? 'Placing order…' : 'Place order'}
-				</button>
+					<h2 className="font-bold">Deliver to</h2>
+					{placeError &&
+						!fieldErrors['delivery.address'] &&
+						!fieldErrors['delivery.phone'] && (
+							<div className="mt-3">
+								<Alert type="error">
+									{getErrorMessage(placeError)}
+								</Alert>
+							</div>
+						)}
+					<Field
+						label="Address"
+						htmlFor="address"
+						error={fieldErrors['delivery.address']}
+					>
+						<textarea
+							id="address"
+							className="input"
+							rows={3}
+							autoComplete="street-address"
+							value={form.address}
+							onChange={update('address')}
+							required
+						/>
+					</Field>
+					<Field
+						label="Phone"
+						htmlFor="phone"
+						error={fieldErrors['delivery.phone']}
+					>
+						<input
+							id="phone"
+							type="tel"
+							className="input"
+							autoComplete="tel"
+							value={form.phone}
+							onChange={update('phone')}
+							required
+						/>
+					</Field>
+					<Field
+						label="Note for the restaurant"
+						htmlFor="note"
+						hint="Optional, e.g. ring the bell twice"
+						error={fieldErrors['delivery.note']}
+					>
+						<input
+							id="note"
+							className="input"
+							maxLength={200}
+							value={form.note}
+							onChange={update('note')}
+						/>
+					</Field>
+					<button
+						type="submit"
+						className="btn btn-primary mt-6 w-full py-3"
+						disabled={isPlacing}
+					>
+						{isPlacing
+							? 'Placing order…'
+							: `Place order · ${formatPrice(cart.total)}`}
+					</button>
+				</form>
 				<Link to="/orders" className="btn btn-outline mt-3 w-full">
 					Your orders
 				</Link>

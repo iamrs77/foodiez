@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { api, createDish, createRestaurant, signUp } from './helpers.js';
+import {
+	api,
+	createDish,
+	createRestaurant,
+	placeOrder,
+	signUp,
+} from './helpers.js';
 
 let vendor;
 let customer;
@@ -109,10 +115,7 @@ describe('orders', () => {
 		await addToCart(customer, dosa.id, 2).expect(200);
 		await addToCart(customer, coffee.id).expect(200);
 
-		const res = await api
-			.post('/api/orders')
-			.set(customer.auth)
-			.expect(201);
+		const res = await placeOrder(customer).expect(201);
 		expect(res.body).toMatchObject({
 			restaurantName: 'Dosa Corner',
 			total: 280,
@@ -127,16 +130,13 @@ describe('orders', () => {
 	});
 
 	it('refuses an empty cart', async () => {
-		const res = await api
-			.post('/api/orders')
-			.set(customer.auth)
-			.expect(400);
+		const res = await placeOrder(customer).expect(400);
 		expect(res.body.message).toBe('Your cart is empty');
 	});
 
 	it('keep the price that was paid when the menu changes later', async () => {
 		await addToCart(customer, dosa.id).expect(200);
-		await api.post('/api/orders').set(customer.auth).expect(201);
+		await placeOrder(customer).expect(201);
 
 		await api
 			.patch(`/api/dishes/${dosa.id}`)
@@ -155,12 +155,12 @@ describe('orders', () => {
 	it('show only your own orders, newest first', async () => {
 		const stranger = await signUp('customer');
 		await addToCart(stranger, dosa.id).expect(200);
-		await api.post('/api/orders').set(stranger.auth).expect(201);
+		await placeOrder(stranger).expect(201);
 
 		await addToCart(customer, dosa.id).expect(200);
-		await api.post('/api/orders').set(customer.auth).expect(201);
+		await placeOrder(customer).expect(201);
 		await addToCart(customer, coffee.id).expect(200);
-		await api.post('/api/orders').set(customer.auth).expect(201);
+		await placeOrder(customer).expect(201);
 
 		const history = await api
 			.get('/api/orders')

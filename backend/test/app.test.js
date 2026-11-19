@@ -32,7 +32,7 @@ describe('app', () => {
 describe('demo data', () => {
 	it('adds restaurants, menus and accounts you can log in with', async () => {
 		const counts = await seedDemoData();
-		expect(counts).toEqual({ users: 3, restaurants: 5, orders: 2 });
+		expect(counts).toEqual({ users: 4, restaurants: 5, orders: 3 });
 
 		const login = await api
 			.post('/api/auth/login')

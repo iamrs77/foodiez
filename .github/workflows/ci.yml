@@ -64,6 +64,19 @@ jobs:
           curl --fail --silent --show-error http://localhost:8080/api/restaurants | grep -q 'Spice Route'
           curl --fail --silent --show-error http://localhost:8080/restaurants/anything | grep -q '<div id="root">'
 
+      # placing an order runs a MongoDB transaction, which needs the replica set
+      - name: Place an order in a demo, through the web container
+        run: |
+          set -euo pipefail
+          api=http://localhost:8080/api
+          token=$(curl --fail -s -X POST -H 'Content-Type: application/json' -d '{"as":"customer"}' $api/demo | jq -r .token)
+          auth="Authorization: Bearer $token"
+          restaurant=$(curl --fail -s -H "$auth" $api/restaurants | jq -r '.[0].id')
+          dish=$(curl --fail -s -H "$auth" $api/restaurants/$restaurant/dishes | jq -r '.[0].id')
+          curl --fail -s -X POST -H "$auth" -H 'Content-Type: application/json' -d "{\"dishId\":\"$dish\"}" $api/cart/items > /dev/null
+          order='{"delivery":{"address":"1 Test Street, Bengaluru","phone":"+91 90000 00000"}}'
+          curl --fail -s -X POST -H "$auth" -H 'Content-Type: application/json' -H 'Idempotency-Key: ci-check-order' -d "$order" $api/orders | jq -e '.status == "placed"'
+
       - name: Show container status and logs
         if: failure()
         run: |
