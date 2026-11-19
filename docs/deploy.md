@@ -7,7 +7,7 @@ The live demo runs on two free plans, with no credit card:
 
 Every push to `main` deploys by itself once GitHub Actions CI has passed.
 
-On the public site, sign-ups are off and the shared demo accounts can't log in, so nobody can change the restaurants everyone browses. Instead, **Try the demo** gives each visitor a private copy of the demo data, which MongoDB deletes after 24 hours (see [How the demo works](../README.md#how-the-demo-works)).
+On the public site, sign-ups are off and the shared demo accounts can't log in, so nobody can change the restaurants everyone browses. Instead, **Try the demo** gives each visitor a private copy of the demo data, which MongoDB deletes after 24 hours (see [Demo sandboxes](architecture.md#demo-sandboxes)).
 
 Free plans change. These steps were written in November 2026.
 
