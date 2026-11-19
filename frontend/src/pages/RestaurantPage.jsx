@@ -12,6 +12,7 @@ import {
 	useGetRestaurantQuery,
 	useRemoveCartItemMutation,
 	useUpdateCartItemMutation,
+	useUpdateDishMutation,
 } from '../app/api';
 import Alert from '../components/Alert';
 import CuisineTile from '../components/CuisineTile';
@@ -39,6 +40,8 @@ export default function RestaurantPage() {
 	const [clearCart] = useClearCartMutation();
 	const [deleteRestaurant] = useDeleteRestaurantMutation();
 	const [deleteDish] = useDeleteDishMutation();
+	const [updateDish] = useUpdateDishMutation();
+	const [vegOnly, setVegOnly] = useState(false);
 
 	// a dish that couldn't be added because the cart has another restaurant's food
 	const [conflict, setConflict] = useState(null);
@@ -134,6 +137,18 @@ export default function RestaurantPage() {
 	};
 
 	const dishes = dishesQuery.data ?? [];
+	const hasBoth = dishes.some((d) => d.isVeg) && dishes.some((d) => !d.isVeg);
+	const shown = vegOnly ? dishes.filter((d) => d.isVeg) : dishes;
+	// the menu's sections, in the order the restaurant added them
+	const sections = [];
+	for (const dish of shown) {
+		let section = sections.find((s) => s.name === dish.category);
+		if (!section) {
+			section = { name: dish.category, dishes: [] };
+			sections.push(section);
+		}
+		section.dishes.push(dish);
+	}
 
 	return (
 		<>
@@ -145,7 +160,15 @@ export default function RestaurantPage() {
 			</Link>
 
 			<section className="card flex flex-col gap-6 p-6 sm:flex-row sm:items-center">
-				<CuisineTile cuisine={restaurant.cuisine} />
+				{restaurant.image ? (
+					<img
+						src={restaurant.image}
+						alt=""
+						className="h-40 w-full shrink-0 rounded-2xl object-cover sm:h-32 sm:w-48"
+					/>
+				) : (
+					<CuisineTile cuisine={restaurant.cuisine} />
+				)}
 				<div className="flex-1">
 					<h1 className="text-3xl font-bold uppercase">
 						{restaurant.name}
@@ -218,7 +241,21 @@ export default function RestaurantPage() {
 				{actionError && <Alert type="error">{actionError}</Alert>}
 			</div>
 
-			<h2 className="mt-8 mb-4 text-2xl font-bold">Menu</h2>
+			<div className="mt-8 mb-2 flex flex-wrap items-center justify-between gap-3">
+				<h2 className="text-2xl font-bold">Menu</h2>
+				{hasBoth && (
+					<label className="flex cursor-pointer items-center gap-2 rounded-full border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold">
+						<input
+							type="checkbox"
+							checked={vegOnly}
+							onChange={(event) =>
+								setVegOnly(event.target.checked)
+							}
+						/>
+						<VegMark isVeg /> Veg only
+					</label>
+				)}
+			</div>
 			{dishesQuery.isLoading && <SkeletonRows />}
 			{dishesQuery.error && (
 				<Alert type="error">{getErrorMessage(dishesQuery.error)}</Alert>
@@ -231,81 +268,130 @@ export default function RestaurantPage() {
 				</EmptyState>
 			)}
 
-			<ul className="space-y-4">
-				{dishes.map((dish) => {
-					const cartItem = cartHere?.items.find(
-						(item) => item.dish.id === dish.id,
-					);
-					return (
-						<li
-							key={dish.id}
-							className="card flex items-center justify-between gap-4 p-5"
-						>
-							<div className="min-w-0">
-								<div className="flex items-center gap-2">
-									<VegMark isVeg={dish.isVeg} />
-									<h3 className="text-lg font-bold">
-										{dish.name}
-									</h3>
-								</div>
-								<p className="mt-1 font-semibold">
-									{formatPrice(dish.price)}
-								</p>
-								{dish.description && (
-									<p className="mt-1 text-sm text-gray-500">
-										{dish.description}
-									</p>
-								)}
-							</div>
-
-							<div className="shrink-0">
-								{isOwner && (
-									<div className="flex gap-2">
-										<Link
-											to={`/vendor/restaurants/${id}/dishes/${dish.id}/edit`}
-											className="btn btn-outline px-3"
-											aria-label={`Edit ${dish.name}`}
-										>
-											<Pencil size={16} />
-										</Link>
-										<button
-											type="button"
-											className="btn btn-danger px-3"
-											onClick={() =>
-												handleDeleteDish(dish)
-											}
-											aria-label={`Delete ${dish.name}`}
-										>
-											<Trash2 size={16} />
-										</button>
-									</div>
-								)}
-								{(!user || isCustomer) &&
-									(cartItem ? (
-										<QuantityStepper
-											quantity={cartItem.quantity}
-											onChange={(quantity) =>
-												handleQuantity(
-													cartItem,
-													quantity,
-												)
-											}
+			{sections.map((section) => (
+				<section key={section.name} aria-label={section.name}>
+					<h3 className="mt-6 mb-3 text-lg font-bold text-gray-700">
+						{section.name}{' '}
+						<span className="font-normal text-gray-400">
+							({section.dishes.length})
+						</span>
+					</h3>
+					<ul className="space-y-4">
+						{section.dishes.map((dish) => {
+							const cartItem = cartHere?.items.find(
+								(item) => item.dish.id === dish.id,
+							);
+							// only an explicit false: data saved before sold-out existed is available
+							const soldOut = dish.available === false;
+							return (
+								<li
+									key={dish.id}
+									className="card flex items-center gap-4 p-4"
+								>
+									{dish.image && (
+										<img
+											src={dish.image}
+											alt=""
+											loading="lazy"
+											className={`h-20 w-28 shrink-0 rounded-xl object-cover ${soldOut ? 'grayscale' : ''}`}
 										/>
-									) : (
-										<button
-											type="button"
-											className="btn btn-primary"
-											onClick={() => handleAdd(dish)}
-											disabled={isAdding}
-										>
-											<Plus size={16} /> Add
-										</button>
-									))}
-							</div>
-						</li>
-					);
-				})}
-			</ul>
+									)}
+									<div className="min-w-0 flex-1">
+										<div className="flex flex-wrap items-center gap-2">
+											<VegMark isVeg={dish.isVeg} />
+											<h4 className="text-lg font-bold">
+												{dish.name}
+											</h4>
+											{soldOut && (
+												<span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs font-semibold text-gray-700">
+													Sold out
+												</span>
+											)}
+										</div>
+										<p className="mt-1 font-semibold">
+											{formatPrice(dish.price)}
+										</p>
+										{dish.description && (
+											<p className="mt-1 text-sm text-gray-500">
+												{dish.description}
+											</p>
+										)}
+									</div>
+
+									<div className="shrink-0">
+										{isOwner && (
+											<div className="flex flex-wrap justify-end gap-2">
+												<button
+													type="button"
+													className="btn btn-outline px-3 text-sm"
+													onClick={() =>
+														run(() =>
+															updateDish({
+																id: dish.id,
+																available:
+																	soldOut,
+															}).unwrap(),
+														)
+													}
+												>
+													{soldOut
+														? 'Back in stock'
+														: 'Mark sold out'}
+												</button>
+												<Link
+													to={`/vendor/restaurants/${id}/dishes/${dish.id}/edit`}
+													className="btn btn-outline px-3"
+													aria-label={`Edit ${dish.name}`}
+												>
+													<Pencil size={16} />
+												</Link>
+												<button
+													type="button"
+													className="btn btn-danger px-3"
+													onClick={() =>
+														handleDeleteDish(dish)
+													}
+													aria-label={`Delete ${dish.name}`}
+												>
+													<Trash2 size={16} />
+												</button>
+											</div>
+										)}
+										{(!user || isCustomer) &&
+											(cartItem ? (
+												<QuantityStepper
+													quantity={cartItem.quantity}
+													onChange={(quantity) =>
+														handleQuantity(
+															cartItem,
+															quantity,
+														)
+													}
+												/>
+											) : soldOut ? (
+												<span className="text-sm font-semibold text-gray-500">
+													Sold out
+												</span>
+											) : (
+												<button
+													type="button"
+													className="btn btn-primary"
+													onClick={() =>
+														handleAdd(dish)
+													}
+													disabled={isAdding}
+													aria-label={`Add ${dish.name}`}
+												>
+													<Plus size={16} /> Add
+												</button>
+											))}
+									</div>
+								</li>
+							);
+						})}
+					</ul>
+				</section>
+			))}
 
 			{cartCount > 0 && (
 				<div className="sticky bottom-4 mt-8">

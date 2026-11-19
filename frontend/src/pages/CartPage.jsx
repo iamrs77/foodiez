@@ -71,6 +71,8 @@ export default function CartPage() {
 				: updateCartItem({ id: item.id, quantity }).unwrap(),
 		);
 
+	// a dish can sell out while it waits in the cart
+	const soldOut = cart.items.filter((item) => item.dish.available === false);
 	const last = orders?.[0]?.delivery;
 	const form = delivery ?? {
 		address: last?.address ?? '',
@@ -132,6 +134,11 @@ export default function CartPage() {
 								<p className="mt-1 text-sm text-gray-500">
 									{formatPrice(item.dish.price)} each
 								</p>
+								{item.dish.available === false && (
+									<p className="mt-1 text-sm font-semibold text-red-700">
+										Sold out now: remove it to order
+									</p>
+								)}
 							</div>
 							<QuantityStepper
 								quantity={item.quantity}
@@ -229,10 +236,21 @@ export default function CartPage() {
 							onChange={update('note')}
 						/>
 					</Field>
+					{soldOut.length > 0 && (
+						<div className="mt-4">
+							<Alert type="info">
+								{soldOut
+									.map((item) => item.dish.name)
+									.join(', ')}{' '}
+								sold out after you added it. Remove it to place
+								your order.
+							</Alert>
+						</div>
+					)}
 					<button
 						type="submit"
 						className="btn btn-primary mt-6 w-full py-3"
-						disabled={isPlacing}
+						disabled={isPlacing || soldOut.length > 0}
 					>
 						{isPlacing
 							? 'Placing order…'

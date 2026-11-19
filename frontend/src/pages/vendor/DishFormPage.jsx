@@ -20,11 +20,7 @@ const TYPES = [
 // used for both "Add dish" and editing a dish
 export default function DishFormPage() {
 	const { id: restaurantId, dishId } = useParams();
-	const {
-		data: dishes,
-		isLoading,
-		error,
-	} = useGetDishesQuery(restaurantId, { skip: !dishId });
+	const { data: dishes, isLoading, error } = useGetDishesQuery(restaurantId);
 
 	if (dishId && isLoading) {
 		return <SkeletonRows count={2} />;
@@ -38,16 +34,20 @@ export default function DishFormPage() {
 		return <EmptyState emoji="🍽️" title="Dish not found" />;
 	}
 
+	// the menu's sections so far, offered as suggestions
+	const categories = [...new Set((dishes ?? []).map((d) => d.category))];
+
 	return (
 		<DishForm
 			key={dish?.id ?? 'new'}
 			restaurantId={restaurantId}
 			dish={dish}
+			categories={categories}
 		/>
 	);
 }
 
-function DishForm({ restaurantId, dish }) {
+function DishForm({ restaurantId, dish, categories }) {
 	const navigate = useNavigate();
 	const isEdit = Boolean(dish);
 	const [form, setForm] = useState({
@@ -55,6 +55,9 @@ function DishForm({ restaurantId, dish }) {
 		description: dish?.description ?? '',
 		price: dish ? String(dish.price) : '',
 		isVeg: dish?.isVeg ?? true,
+		category: dish?.category ?? '',
+		image: dish?.image ?? '',
+		available: dish?.available ?? true,
 	});
 	const [createDish, createState] = useCreateDishMutation();
 	const [updateDish, updateState] = useUpdateDishMutation();
@@ -67,7 +70,12 @@ function DishForm({ restaurantId, dish }) {
 
 	const handleSubmit = async (event) => {
 		event.preventDefault();
-		const body = { ...form, price: Number(form.price) };
+		const body = {
+			...form,
+			price: Number(form.price),
+			category: form.category.trim() || 'Menu',
+			image: form.image.trim(),
+		};
 		try {
 			if (isEdit) {
 				await updateDish({ id: dish.id, ...body }).unwrap();
@@ -163,6 +171,57 @@ function DishForm({ restaurantId, dish }) {
 						))}
 					</div>
 				</fieldset>
+				<Field
+					label="Menu section"
+					htmlFor="category"
+					hint="Where it's listed, e.g. Starters, Mains or Desserts"
+					error={fieldErrors.category}
+				>
+					<input
+						id="category"
+						className="input"
+						list="categories"
+						maxLength={40}
+						value={form.category}
+						onChange={update('category')}
+					/>
+					<datalist id="categories">
+						{categories.map((category) => (
+							<option key={category} value={category} />
+						))}
+					</datalist>
+				</Field>
+				<Field
+					label="Photo link"
+					htmlFor="image"
+					hint="Optional: a link to a photo, starting with https://"
+					error={fieldErrors.image}
+				>
+					<input
+						id="image"
+						inputMode="url"
+						className="input"
+						placeholder="https://"
+						value={form.image}
+						onChange={update('image')}
+					/>
+				</Field>
+				<label className="mt-4 flex items-center gap-2">
+					<input
+						type="checkbox"
+						checked={form.available}
+						onChange={(event) =>
+							setForm({
+								...form,
+								available: event.target.checked,
+							})
+						}
+					/>
+					Available to order
+					<span className="text-sm text-gray-500">
+						(untick it when it's sold out)
+					</span>
+				</label>
 				<div className="mt-6 flex gap-2">
 					<button
 						type="submit"

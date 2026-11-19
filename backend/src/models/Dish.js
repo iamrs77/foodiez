@@ -13,6 +13,12 @@ const dishSchema = new mongoose.Schema(
 		description: { type: String, trim: true, maxlength: 300, default: '' },
 		price: { type: Number, required: true, min: 0 },
 		isVeg: { type: Boolean, default: true },
+		// the restaurant's own menu sections, e.g. "Starters" or "Pizzas"
+		category: { type: String, trim: true, maxlength: 40, default: 'Menu' },
+		// false while it's sold out: shown on the menu, but can't be ordered
+		available: { type: Boolean, default: true },
+		// a photo: a link, or a path to one of the demo photos
+		image: { type: String, trim: true, maxlength: 500, default: '' },
 	},
 	{ timestamps: true },
 );

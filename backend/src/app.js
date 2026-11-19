@@ -24,7 +24,14 @@ export function createApp() {
 	app.disable('x-powered-by');
 
 	app.use(requestLogger);
-	app.use(helmet());
+	app.use(
+		helmet({
+			// restaurants and dishes can show photos from any https address
+			contentSecurityPolicy: {
+				directives: { 'img-src': ["'self'", 'data:', 'https:'] },
+			},
+		}),
+	);
 	app.use(cors({ origin: config.CORS_ORIGIN.split(',') }));
 	app.use(express.json({ limit: '100kb' }));
 

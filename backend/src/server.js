@@ -2,6 +2,7 @@ import { createApp } from './app.js';
 import { config } from './config.js';
 import { connectDb, disconnectDb } from './db.js';
 import { logger } from './logger.js';
+import { Restaurant } from './models/Restaurant.js';
 import { seedIfEmpty } from './seed/seed.js';
 
 try {
@@ -13,6 +14,12 @@ try {
 		'Check MONGODB_URI in .env, or start the database with "docker compose up -d db".',
 	);
 	process.exit(1);
+}
+
+// restaurants saved before search words existed (e.g. in an older Docker volume)
+const fixed = await Restaurant.addMissingSearchTerms();
+if (fixed > 0) {
+	logger.info(`Added search words to ${fixed} restaurants`);
 }
 
 if (config.SEED_DEMO_DATA && (await seedIfEmpty())) {

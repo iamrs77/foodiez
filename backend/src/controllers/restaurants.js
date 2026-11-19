@@ -2,8 +2,21 @@ import { z } from 'zod';
 import { HttpError } from '../middleware/errors.js';
 import { CartItem } from '../models/CartItem.js';
 import { Dish } from '../models/Dish.js';
-import { Restaurant } from '../models/Restaurant.js';
+import { Restaurant, searchWords } from '../models/Restaurant.js';
 import { sameSandboxAs, sandboxOf } from '../models/Sandbox.js';
+
+// a photo: '' for none, one of the app's own demo photos, or an https link
+// (only https, so pages never load insecure images)
+export const imageField = z.union([
+	z.literal(''),
+	z.string().regex(/^\/images\/(restaurants|dishes)\/[a-z0-9-]+\.webp$/),
+	z
+		.url({
+			protocol: /^https$/,
+			error: 'Use a link that starts with https://',
+		})
+		.max(500),
+]);
 
 const fields = {
 	name: z
@@ -23,9 +36,13 @@ const fields = {
 		.max(120),
 	priceForTwo: z.number().int().min(0).max(100_000),
 	deliveryTimeMinutes: z.number().int().min(5).max(180),
+	image: imageField,
 };
 
-export const createRestaurantSchema = z.object(fields);
+export const createRestaurantSchema = z.object({
+	...fields,
+	image: fields.image.default(''),
+});
 
 // PATCH only changes the fields that are sent
 export const updateRestaurantSchema = z
@@ -49,27 +66,89 @@ export async function findOwnedRestaurant(id, user) {
 	return restaurant;
 }
 
-// GET /api/restaurants?search=pizza
-export async function listRestaurants(req, res) {
-	const search =
-		typeof req.query.search === 'string'
-			? req.query.search.trim().slice(0, 50)
-			: '';
+const SORTS = {
+	newest: { createdAt: -1, _id: -1 },
+	fastest: { deliveryTimeMinutes: 1, _id: 1 },
+	cheapest: { priceForTwo: 1, _id: 1 },
+};
 
+// a restaurant's cuisine is a list like "Italian, Pizza" or "Burgers & Fast Food"
+const cuisineTags = (cuisine) =>
+	cuisine
+		.split(/\s*[,&/]\s*/)
+		.map((tag) => tag.trim())
+		.filter(Boolean);
+
+// the restaurants (in one sandbox) whose menu has dishes, all of them veg
+async function pureVegRestaurants(sandbox) {
+	const [withDishes, withNonVeg] = await Promise.all([
+		Dish.distinct('restaurant', { sandbox }),
+		Dish.distinct('restaurant', { sandbox, isVeg: false }),
+	]);
+	const nonVeg = new Set(withNonVeg.map(String));
+	return withDishes.filter((id) => !nonVeg.has(String(id)));
+}
+
+// GET /api/restaurants?search=piz&cuisine=Pizza&veg=true&sort=fastest
+export async function listRestaurants(req, res) {
+	const { search, cuisine, veg, sort } = req.query;
+	const sandbox = sandboxOf(req.user);
 	// a visitor in a demo sees only their own copy of the restaurants
-	const filter = { sandbox: sandboxOf(req.user) };
-	if (search) {
-		const pattern = new RegExp(escapeRegex(search), 'i');
-		Object.assign(filter, {
-			$or: [
-				{ name: pattern },
-				{ cuisine: pattern },
-				{ location: pattern },
-			],
-		});
+	const filter = { sandbox };
+
+	// every word typed must start one of the restaurant's search words: "north
+	// ind" finds North Indian. Anchored at the start, each word can use the
+	// (sandbox, searchTerms) index instead of reading every restaurant
+	const words =
+		typeof search === 'string' ? searchWords(search.slice(0, 50)) : [];
+	if (words.length > 0) {
+		filter.$and = words.slice(0, 5).map((word) => ({
+			searchTerms: { $regex: `^${escapeRegex(word)}` },
+		}));
+	}
+	if (typeof cuisine === 'string' && cuisine.trim()) {
+		filter.cuisine = new RegExp(
+			`(^|[,&/])\\s*${escapeRegex(cuisine.trim())}\\s*($|[,&/])`,
+			'i',
+		);
 	}
 
-	res.json(await Restaurant.find(filter).sort({ createdAt: -1, _id: -1 }));
+	const pureVegIds = await pureVegRestaurants(sandbox);
+	if (veg === 'true') {
+		filter._id = { $in: pureVegIds };
+	}
+
+	const restaurants = await Restaurant.find(filter).sort(
+		Object.hasOwn(SORTS, sort) ? SORTS[sort] : SORTS.newest,
+	);
+	const pureVeg = new Set(pureVegIds.map(String));
+	res.json(
+		restaurants.map((restaurant) => ({
+			...restaurant.toJSON(),
+			pureVeg: pureVeg.has(restaurant.id),
+		})),
+	);
+}
+
+// GET /api/restaurants/cuisines: the cuisines to filter by, most common first
+export async function listCuisines(req, res) {
+	const cuisines = await Restaurant.find({ sandbox: sandboxOf(req.user) })
+		.select('cuisine')
+		.lean();
+	const counts = new Map();
+	for (const { cuisine } of cuisines) {
+		for (const tag of cuisineTags(cuisine)) {
+			const key = tag.toLowerCase();
+			const entry = counts.get(key) ?? { name: tag, count: 0 };
+			entry.count += 1;
+			counts.set(key, entry);
+		}
+	}
+	res.json(
+		[...counts.values()]
+			.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+			.map((entry) => entry.name),
+	);
 }
 
 export async function listMyRestaurants(req, res) {

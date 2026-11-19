@@ -4,7 +4,7 @@ import { CartItem } from '../models/CartItem.js';
 import { Dish } from '../models/Dish.js';
 import { Restaurant } from '../models/Restaurant.js';
 import { sameSandboxAs, sandboxOf } from '../models/Sandbox.js';
-import { findOwnedRestaurant } from './restaurants.js';
+import { findOwnedRestaurant, imageField } from './restaurants.js';
 
 const fields = {
 	name: z
@@ -15,12 +15,19 @@ const fields = {
 	description: z.string().trim().max(300),
 	price: z.number().min(0).max(100_000),
 	isVeg: z.boolean(),
+	// the menu section it's listed under
+	category: z.string().trim().min(1, 'Enter a menu section').max(40),
+	available: z.boolean(),
+	image: imageField,
 };
 
 export const createDishSchema = z.object({
 	...fields,
 	description: fields.description.default(''),
 	isVeg: fields.isVeg.default(true),
+	category: fields.category.default('Menu'),
+	available: fields.available.default(true),
+	image: fields.image.default(''),
 });
 
 // PATCH only changes the fields that are sent

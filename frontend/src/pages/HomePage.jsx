@@ -1,35 +1,61 @@
 import { Search } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { useSearchParams } from 'react-router';
-import { useGetRestaurantsQuery } from '../app/api';
+import { useGetCuisinesQuery, useGetRestaurantsQuery } from '../app/api';
 import Alert from '../components/Alert';
 import EmptyState from '../components/EmptyState';
 import { SkeletonCards } from '../components/Loading';
 import RestaurantCard from '../components/RestaurantCard';
 import TryDemo from '../components/TryDemo';
+import VegMark from '../components/VegMark';
 import { selectUser } from '../features/auth/authSlice';
 import { getErrorMessage } from '../lib/errors';
 import { useDebouncedValue } from '../lib/useDebouncedValue';
 
+const SORTS = [
+	{ value: '', label: 'Newest' },
+	{ value: 'fastest', label: 'Fastest delivery' },
+	{ value: 'cheapest', label: 'Lowest price' },
+];
+
+const chipClass = (active) =>
+	`flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-semibold transition ${
+		active
+			? 'border-ink bg-ink text-white'
+			: 'border-gray-300 bg-white hover:bg-gray-50'
+	}`;
+
 export default function HomePage() {
-	// the search lives in the URL (?q=pizza), so it survives reloads and can be shared
 	const user = useSelector(selectUser);
+	// the search and filters live in the URL (?q=pizza&veg=1), so they survive
+	// reloads and can be shared
 	const [params, setParams] = useSearchParams();
 	const search = params.get('q') ?? '';
+	const cuisine = params.get('cuisine') ?? '';
+	const veg = params.get('veg') === '1';
+	const sort = params.get('sort') ?? '';
 	const query = useDebouncedValue(search.trim());
 
+	const { data: cuisines = [] } = useGetCuisinesQuery();
 	const {
 		data: restaurants,
 		isLoading,
 		isFetching,
 		error,
 		refetch,
-	} = useGetRestaurantsQuery(query);
+	} = useGetRestaurantsQuery({ search: query, cuisine, veg, sort });
 
-	const handleSearch = (event) => {
-		const value = event.target.value;
-		setParams(value ? { q: value } : {}, { replace: true });
+	const setParam = (key, value) => {
+		const next = new URLSearchParams(params);
+		if (value) {
+			next.set(key, value);
+		} else {
+			next.delete(key);
+		}
+		setParams(next, { replace: true });
 	};
+	const handleSearch = (event) => setParam('q', event.target.value);
+	const filtered = Boolean(query || cuisine || veg);
 
 	let content;
 	if (error) {
@@ -54,7 +80,16 @@ export default function HomePage() {
 	} else if (restaurants.length === 0) {
 		content = (
 			<EmptyState emoji="🔍" title="No restaurants found">
-				Try another name, cuisine or area.
+				<p>Try another name, cuisine or area.</p>
+				{filtered && (
+					<button
+						type="button"
+						className="btn btn-outline mt-4"
+						onClick={() => setParams({}, { replace: true })}
+					>
+						Clear search and filters
+					</button>
+				)}
 			</EmptyState>
 		);
 	} else {
@@ -99,7 +134,59 @@ export default function HomePage() {
 
 			{!user && <TryDemo className="mt-6" />}
 
-			<h2 className="mt-10 mb-6 text-2xl font-bold">
+			<div
+				className="mt-8 flex flex-wrap items-center gap-2"
+				role="group"
+				aria-label="Filters"
+			>
+				<button
+					type="button"
+					className={chipClass(!cuisine)}
+					aria-pressed={!cuisine}
+					onClick={() => setParam('cuisine', '')}
+				>
+					All
+				</button>
+				{cuisines.map((name) => (
+					<button
+						key={name}
+						type="button"
+						className={chipClass(cuisine === name)}
+						aria-pressed={cuisine === name}
+						onClick={() =>
+							setParam('cuisine', cuisine === name ? '' : name)
+						}
+					>
+						{name}
+					</button>
+				))}
+				<button
+					type="button"
+					className={chipClass(veg)}
+					aria-pressed={veg}
+					onClick={() => setParam('veg', veg ? '' : '1')}
+				>
+					<VegMark isVeg /> Pure veg
+				</button>
+				<label className="ml-auto flex items-center gap-2 text-sm font-semibold">
+					Sort by
+					<select
+						className="input w-auto py-1.5"
+						value={sort}
+						onChange={(event) =>
+							setParam('sort', event.target.value)
+						}
+					>
+						{SORTS.map((option) => (
+							<option key={option.value} value={option.value}>
+								{option.label}
+							</option>
+						))}
+					</select>
+				</label>
+			</div>
+
+			<h2 className="mt-6 mb-6 text-2xl font-bold">
 				{query ? `Results for "${query}"` : 'Top restaurants'}
 			</h2>
 			{content}

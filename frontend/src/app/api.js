@@ -66,11 +66,21 @@ export const api = createApi({
 			query: () => ({ url: '/demo/switch', method: 'POST' }),
 		}),
 
+		// filters: { search, cuisine, veg, sort }, all optional
 		getRestaurants: build.query({
-			query: (search = '') => ({
+			query: ({ search, cuisine, veg, sort } = {}) => ({
 				url: '/restaurants',
-				params: search ? { search } : undefined,
+				params: {
+					search: search || undefined,
+					cuisine: cuisine || undefined,
+					veg: veg ? 'true' : undefined,
+					sort: sort || undefined,
+				},
 			}),
+			providesTags: ['Restaurant'],
+		}),
+		getCuisines: build.query({
+			query: () => '/restaurants/cuisines',
 			providesTags: ['Restaurant'],
 		}),
 		getMyRestaurants: build.query({
@@ -202,6 +212,7 @@ export const {
 	useStartDemoMutation,
 	useSwitchDemoRoleMutation,
 	useGetRestaurantsQuery,
+	useGetCuisinesQuery,
 	useGetMyRestaurantsQuery,
 	useGetRestaurantQuery,
 	useCreateRestaurantMutation,

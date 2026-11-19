@@ -100,10 +100,7 @@ test('a demo visitor orders, then runs the restaurant that receives it', async (
 	// order a masala dosa; the address comes from the last order
 	await page.getByRole('link', { name: 'Foodiez home' }).click();
 	await restaurant(page, 'Dosa Corner').click();
-	await page
-		.getByRole('button', { name: 'Add', exact: true })
-		.first()
-		.click();
+	await page.getByRole('button', { name: 'Add Masala Dosa' }).click();
 	await page.getByRole('link', { name: 'Cart, 1 item' }).click();
 	await expect(page.getByLabel('Address')).toHaveValue(/Koramangala/);
 	await page.getByRole('button', { name: /Place order/ }).click();
@@ -204,4 +201,30 @@ test('a demo survives a reload, and logging out returns to the showcase', async 
 		page.getByRole('heading', { name: 'Try the demo' }),
 	).toBeVisible();
 	await expect(page.getByText('This is your private demo.')).toHaveCount(0);
+});
+
+test('visitors filter, search and read menus by section', async ({ page }) => {
+	await page.goto('/');
+	await page.getByRole('button', { name: 'Pizza' }).click();
+	await expect(restaurant(page, 'Napoli Slice')).toBeVisible();
+	await expect(restaurant(page, 'Spice Route')).toHaveCount(0);
+
+	await page.getByRole('button', { name: 'All' }).click();
+	await page.getByRole('button', { name: /Pure veg/ }).click();
+	await expect(restaurant(page, 'Dosa Corner')).toBeVisible();
+	await expect(restaurant(page, 'Napoli Slice')).toHaveCount(0);
+	await page.getByRole('button', { name: /Pure veg/ }).click();
+
+	await page.getByPlaceholder(/Search for a restaurant/).fill('burg');
+	await expect(restaurant(page, 'Burger Barn')).toBeVisible();
+	await expect(restaurant(page, 'Dosa Corner')).toHaveCount(0);
+
+	// the menu, in sections, with the sold-out shake
+	await restaurant(page, 'Burger Barn').click();
+	await expect(page.getByRole('region', { name: 'Burgers' })).toBeVisible();
+	const shake = page.locator('li', {
+		has: page.getByRole('heading', { name: 'Chocolate Shake' }),
+	});
+	await expect(shake.getByText('Sold out').first()).toBeVisible();
+	await expect(shake.getByRole('button')).toHaveCount(0);
 });

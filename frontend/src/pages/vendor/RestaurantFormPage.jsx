@@ -16,6 +16,7 @@ const EMPTY = {
 	location: '',
 	priceForTwo: '',
 	deliveryTimeMinutes: '',
+	image: '',
 };
 
 // used for both "Add restaurant" and "Edit details"
@@ -51,6 +52,7 @@ function RestaurantForm({ restaurant }) {
 					location: restaurant.location,
 					priceForTwo: String(restaurant.priceForTwo),
 					deliveryTimeMinutes: String(restaurant.deliveryTimeMinutes),
+					image: restaurant.image ?? '',
 				}
 			: EMPTY,
 	);
@@ -68,6 +70,7 @@ function RestaurantForm({ restaurant }) {
 			...form,
 			priceForTwo: Number(form.priceForTwo),
 			deliveryTimeMinutes: Number(form.deliveryTimeMinutes),
+			image: form.image.trim(),
 		};
 		try {
 			const saved = isEdit
@@ -170,6 +173,21 @@ function RestaurantForm({ restaurant }) {
 						/>
 					</Field>
 				</div>
+				<Field
+					label="Photo link"
+					htmlFor="image"
+					hint="Optional: a link to a photo, starting with https://"
+					error={fieldErrors.image}
+				>
+					<input
+						id="image"
+						inputMode="url"
+						className="input"
+						placeholder="https://"
+						value={form.image}
+						onChange={update('image')}
+					/>
+				</Field>
 				<div className="mt-6 flex gap-2">
 					<button
 						type="submit"

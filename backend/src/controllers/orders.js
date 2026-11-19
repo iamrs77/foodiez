@@ -80,6 +80,14 @@ export async function placeOrder(req, res) {
 			if (cart.items.length === 0) {
 				throw new HttpError(400, 'Your cart is empty');
 			}
+			// the restaurant may have run out since the dish went in the cart
+			const soldOut = cart.items.filter((item) => !item.dish.available);
+			if (soldOut.length > 0) {
+				throw new HttpError(
+					409,
+					`Sold out since you added it: ${soldOut.map((item) => item.dish.name).join(', ')}. Remove it from your cart to order.`,
+				);
+			}
 
 			// prices and the total come from the database, never from the browser
 			const [created] = await Order.create([

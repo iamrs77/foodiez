@@ -9,6 +9,7 @@ import {
 	createRestaurantSchema,
 	deleteRestaurant,
 	getRestaurant,
+	listCuisines,
 	listMyRestaurants,
 	listRestaurants,
 	updateRestaurant,
@@ -26,6 +27,7 @@ router.param('id', checkObjectId);
 // a visitor in a demo browses their own copy (optionalAuth)
 router.get('/', optionalAuth, listRestaurants);
 router.get('/mine', vendorOnly, listMyRestaurants);
+router.get('/cuisines', optionalAuth, listCuisines);
 router.get('/:id', optionalAuth, getRestaurant);
 router.post(
 	'/',

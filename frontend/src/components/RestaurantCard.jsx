@@ -11,13 +11,29 @@ export default function RestaurantCard({ restaurant }) {
 			to={`/restaurants/${restaurant.id}`}
 			className="card group block overflow-hidden transition hover:-translate-y-0.5 hover:shadow-xl"
 		>
-			<div
-				className={`flex h-40 items-center justify-center bg-linear-to-br text-7xl ${gradient}`}
-				aria-hidden="true"
-			>
-				<span className="transition group-hover:scale-110">
-					{emoji}
-				</span>
+			<div className="relative h-40 overflow-hidden">
+				{restaurant.image ? (
+					<img
+						src={restaurant.image}
+						alt=""
+						loading="lazy"
+						className="h-full w-full object-cover transition group-hover:scale-105"
+					/>
+				) : (
+					<div
+						className={`flex h-full items-center justify-center bg-linear-to-br text-7xl ${gradient}`}
+						aria-hidden="true"
+					>
+						<span className="transition group-hover:scale-110">
+							{emoji}
+						</span>
+					</div>
+				)}
+				{restaurant.pureVeg && (
+					<span className="absolute top-3 left-3 rounded-full bg-white/95 px-2.5 py-1 text-xs font-semibold text-veg shadow">
+						Pure veg
+					</span>
+				)}
 			</div>
 			<div className="p-4">
 				<h3

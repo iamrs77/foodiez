@@ -46,6 +46,8 @@ export async function buildCart(userId) {
 				description: row.dish.description,
 				price: row.dish.price,
 				isVeg: row.dish.isVeg,
+				available: row.dish.available,
+				image: row.dish.image,
 			},
 		})),
 		total: valid.reduce(
@@ -68,6 +70,9 @@ export async function addItem(req, res) {
 	});
 	if (!dish) {
 		throw new HttpError(404, 'Dish not found');
+	}
+	if (!dish.available) {
+		throw new HttpError(409, `${dish.name} is sold out right now`);
 	}
 
 	// like real delivery apps, one order comes from one restaurant
