@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { sandboxPlugin } from './Sandbox.js';
 import { toJSONPlugin } from './toJSON.js';
 
 const dishSchema = new mongoose.Schema(
@@ -19,6 +20,7 @@ const dishSchema = new mongoose.Schema(
 // a restaurant can't have two dishes with the same name
 dishSchema.index({ restaurant: 1, name: 1 }, { unique: true });
 
+dishSchema.plugin(sandboxPlugin);
 dishSchema.plugin(toJSONPlugin);
 
 export const Dish = mongoose.model('Dish', dishSchema);

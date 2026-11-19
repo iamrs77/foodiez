@@ -3,6 +3,7 @@ import { HttpError } from '../middleware/errors.js';
 import { CartItem } from '../models/CartItem.js';
 import { Dish } from '../models/Dish.js';
 import { Restaurant } from '../models/Restaurant.js';
+import { sameSandboxAs, sandboxOf } from '../models/Sandbox.js';
 import { findOwnedRestaurant } from './restaurants.js';
 
 const fields = {
@@ -49,7 +50,10 @@ async function findOwnedDish(id, user) {
 
 // GET /api/restaurants/:id/dishes
 export async function listDishes(req, res) {
-	const restaurant = await Restaurant.findById(req.params.id);
+	const restaurant = await Restaurant.findOne({
+		_id: req.params.id,
+		sandbox: sandboxOf(req.user),
+	});
 	if (!restaurant) {
 		throw new HttpError(404, 'Restaurant not found');
 	}
@@ -68,6 +72,7 @@ export async function createDish(req, res) {
 		const dish = await Dish.create({
 			...req.body,
 			restaurant: restaurant._id,
+			...sameSandboxAs(restaurant),
 		});
 		res.status(201).json(dish);
 	} catch (err) {

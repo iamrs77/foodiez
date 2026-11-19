@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { sandboxPlugin } from './Sandbox.js';
 import { toJSONPlugin } from './toJSON.js';
 
 export const MAX_QUANTITY = 20;
@@ -23,6 +24,7 @@ const cartItemSchema = new mongoose.Schema(
 // one row per dish in a user's cart, adding it again raises the quantity
 cartItemSchema.index({ user: 1, dish: 1 }, { unique: true });
 
+cartItemSchema.plugin(sandboxPlugin);
 cartItemSchema.plugin(toJSONPlugin);
 
 export const CartItem = mongoose.model('CartItem', cartItemSchema);

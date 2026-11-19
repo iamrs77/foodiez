@@ -4,8 +4,12 @@ import { User } from '../models/User.js';
 import { HttpError } from './errors.js';
 
 export function signToken(user) {
+	// a demo account's login ends with its demo
+	const expiresIn = user.expiresAt
+		? Math.max(1, Math.floor((user.expiresAt - Date.now()) / 1000))
+		: config.JWT_EXPIRES_IN;
 	return jwt.sign({ sub: user.id, role: user.role }, config.JWT_SECRET, {
-		expiresIn: config.JWT_EXPIRES_IN,
+		expiresIn,
 	});
 }
 
@@ -31,9 +35,25 @@ export async function requireAuth(req, _res, next) {
 	if (!user) {
 		throw new HttpError(401, 'Please log in first');
 	}
+	// MongoDB deletes an expired demo within about a minute; until then, it's over
+	if (user.expiresAt && user.expiresAt <= new Date()) {
+		throw new HttpError(
+			401,
+			'Your demo has ended. Start a new one any time.',
+		);
+	}
 
 	req.user = user;
 	next();
+}
+
+// for pages anyone can see: a logged-in visitor sees their own demo's data,
+// everyone else sees the showcase
+export async function optionalAuth(req, res, next) {
+	if (!req.get('authorization')) {
+		return next();
+	}
+	return requireAuth(req, res, next);
 }
 
 export function requireRole(role) {

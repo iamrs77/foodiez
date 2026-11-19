@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { sandboxPlugin } from './Sandbox.js';
 import { toJSONPlugin } from './toJSON.js';
 
 // a copy of the dish at the time of ordering, so later price or name changes
@@ -30,6 +31,7 @@ const orderSchema = new mongoose.Schema(
 	{ timestamps: true },
 );
 
+orderSchema.plugin(sandboxPlugin);
 orderSchema.plugin(toJSONPlugin);
 
 export const Order = mongoose.model('Order', orderSchema);

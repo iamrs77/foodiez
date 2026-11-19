@@ -3,6 +3,7 @@ import { HttpError } from '../middleware/errors.js';
 import { CartItem } from '../models/CartItem.js';
 import { Dish } from '../models/Dish.js';
 import { Restaurant } from '../models/Restaurant.js';
+import { sameSandboxAs, sandboxOf } from '../models/Sandbox.js';
 
 const fields = {
 	name: z
@@ -55,16 +56,17 @@ export async function listRestaurants(req, res) {
 			? req.query.search.trim().slice(0, 50)
 			: '';
 
-	let filter = {};
+	// a visitor in a demo sees only their own copy of the restaurants
+	const filter = { sandbox: sandboxOf(req.user) };
 	if (search) {
 		const pattern = new RegExp(escapeRegex(search), 'i');
-		filter = {
+		Object.assign(filter, {
 			$or: [
 				{ name: pattern },
 				{ cuisine: pattern },
 				{ location: pattern },
 			],
-		};
+		});
 	}
 
 	res.json(await Restaurant.find(filter).sort({ createdAt: -1, _id: -1 }));
@@ -80,7 +82,10 @@ export async function listMyRestaurants(req, res) {
 }
 
 export async function getRestaurant(req, res) {
-	const restaurant = await Restaurant.findById(req.params.id);
+	const restaurant = await Restaurant.findOne({
+		_id: req.params.id,
+		sandbox: sandboxOf(req.user),
+	});
 	if (!restaurant) {
 		throw new HttpError(404, 'Restaurant not found');
 	}
@@ -91,6 +96,7 @@ export async function createRestaurant(req, res) {
 	const restaurant = await Restaurant.create({
 		...req.body,
 		owner: req.user._id,
+		...sameSandboxAs(req.user),
 	});
 	res.status(201).json(restaurant);
 }

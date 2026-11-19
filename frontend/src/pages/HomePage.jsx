@@ -1,15 +1,19 @@
 import { Search } from 'lucide-react';
+import { useSelector } from 'react-redux';
 import { useSearchParams } from 'react-router';
 import { useGetRestaurantsQuery } from '../app/api';
 import Alert from '../components/Alert';
 import EmptyState from '../components/EmptyState';
 import { SkeletonCards } from '../components/Loading';
 import RestaurantCard from '../components/RestaurantCard';
+import TryDemo from '../components/TryDemo';
+import { selectUser } from '../features/auth/authSlice';
 import { getErrorMessage } from '../lib/errors';
 import { useDebouncedValue } from '../lib/useDebouncedValue';
 
 export default function HomePage() {
 	// the search lives in the URL (?q=pizza), so it survives reloads and can be shared
+	const user = useSelector(selectUser);
 	const [params, setParams] = useSearchParams();
 	const search = params.get('q') ?? '';
 	const query = useDebouncedValue(search.trim());
@@ -92,6 +96,8 @@ export default function HomePage() {
 					/>
 				</label>
 			</section>
+
+			{!user && <TryDemo className="mt-6" />}
 
 			<h2 className="mt-10 mb-6 text-2xl font-bold">
 				{query ? `Results for "${query}"` : 'Top restaurants'}

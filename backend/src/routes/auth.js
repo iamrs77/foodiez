@@ -7,6 +7,7 @@ import {
 	me,
 	register,
 	registerSchema,
+	requireSignupsEnabled,
 } from '../controllers/auth.js';
 import { requireAuth } from '../middleware/auth.js';
 import { validateBody } from '../middleware/validate.js';
@@ -24,7 +25,13 @@ const limiter = rateLimit({
 
 const router = Router();
 
-router.post('/register', limiter, validateBody(registerSchema), register);
+router.post(
+	'/register',
+	limiter,
+	requireSignupsEnabled,
+	validateBody(registerSchema),
+	register,
+);
 router.post('/login', limiter, validateBody(loginSchema), login);
 router.get('/me', requireAuth, me);
 

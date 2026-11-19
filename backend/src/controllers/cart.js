@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { HttpError } from '../middleware/errors.js';
 import { CartItem, MAX_QUANTITY } from '../models/CartItem.js';
 import { Dish } from '../models/Dish.js';
+import { sameSandboxAs, sandboxOf } from '../models/Sandbox.js';
 
 const quantity = z.number().int().min(1).max(MAX_QUANTITY);
 
@@ -60,7 +61,11 @@ export async function getCart(req, res) {
 
 // adds a dish, or raises its quantity if it's already in the cart
 export async function addItem(req, res) {
-	const dish = await Dish.findById(req.body.dishId);
+	// only dishes the customer can see: from their demo, or from the real restaurants
+	const dish = await Dish.findOne({
+		_id: req.body.dishId,
+		sandbox: sandboxOf(req.user),
+	});
 	if (!dish) {
 		throw new HttpError(404, 'Dish not found');
 	}
@@ -89,6 +94,7 @@ export async function addItem(req, res) {
 			user: req.user._id,
 			dish: dish._id,
 			quantity: req.body.quantity,
+			...sameSandboxAs(req.user),
 		});
 	}
 

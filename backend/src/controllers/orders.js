@@ -1,6 +1,7 @@
 import { HttpError } from '../middleware/errors.js';
 import { CartItem } from '../models/CartItem.js';
 import { Order } from '../models/Order.js';
+import { sameSandboxAs } from '../models/Sandbox.js';
 import { buildCart } from './cart.js';
 
 // turns the cart into an order, then empties the cart
@@ -23,6 +24,7 @@ export async function placeOrder(req, res) {
 			quantity,
 		})),
 		total: cart.total,
+		...sameSandboxAs(req.user),
 	});
 	await CartItem.deleteMany({ user: req.user._id });
 

@@ -13,8 +13,12 @@ export default function RequireRole({ role }) {
 			<Navigate to="/login" replace state={{ from: location.pathname }} />
 		);
 	}
+	// the wrong kind of account goes to its own home page. This also covers
+	// switching sides in a demo while on a page only the other side can see
 	if (user.role !== role) {
-		return <Navigate to="/" replace />;
+		return (
+			<Navigate to={user.role === 'vendor' ? '/vendor' : '/'} replace />
+		);
 	}
 	return <Outlet />;
 }

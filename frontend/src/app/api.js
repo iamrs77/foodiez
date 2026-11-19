@@ -1,5 +1,5 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { loggedOut } from '../features/auth/authSlice';
+import { loggedIn, loggedOut } from '../features/auth/authSlice';
 
 const rawBaseQuery = fetchBaseQuery({
 	// "/api" is passed on to the backend by Vite in development and by nginx in Docker
@@ -17,6 +17,13 @@ const rawBaseQuery = fetchBaseQuery({
 export const logout = () => (dispatch) => {
 	dispatch(loggedOut());
 	dispatch(api.util.resetApiState());
+};
+
+// logging in starts from an empty cache too: a demo has its own restaurants,
+// so nothing loaded before may be shown in it
+export const startSession = (session) => (dispatch) => {
+	dispatch(api.util.resetApiState());
+	dispatch(loggedIn(session));
 };
 
 // a 401 while logged in means the session expired, so log out
@@ -48,6 +55,15 @@ export const api = createApi({
 		}),
 		register: build.mutation({
 			query: (body) => ({ url: '/auth/register', method: 'POST', body }),
+		}),
+
+		// what this site offers: sign-ups, the demo, the shared demo accounts
+		getConfig: build.query({ query: () => '/config' }),
+		startDemo: build.mutation({
+			query: (as) => ({ url: '/demo', method: 'POST', body: { as } }),
+		}),
+		switchDemoRole: build.mutation({
+			query: () => ({ url: '/demo/switch', method: 'POST' }),
 		}),
 
 		getRestaurants: build.query({
@@ -150,6 +166,9 @@ export const api = createApi({
 export const {
 	useLoginMutation,
 	useRegisterMutation,
+	useGetConfigQuery,
+	useStartDemoMutation,
+	useSwitchDemoRoleMutation,
 	useGetRestaurantsQuery,
 	useGetMyRestaurantsQuery,
 	useGetRestaurantQuery,

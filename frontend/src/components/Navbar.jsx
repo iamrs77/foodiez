@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Link, NavLink, useNavigate } from 'react-router';
 import { logout, useGetCartQuery } from '../app/api';
 import { selectUser } from '../features/auth/authSlice';
+import { useSiteConfig } from '../lib/useSiteConfig';
 import { Logo } from './Logo';
 
 const linkClass = ({ isActive }) =>
@@ -36,6 +37,7 @@ export default function Navbar() {
 	const user = useSelector(selectUser);
 	const dispatch = useDispatch();
 	const navigate = useNavigate();
+	const { isLoading: configLoading, signupsEnabled } = useSiteConfig();
 
 	const handleLogout = () => {
 		dispatch(logout());
@@ -54,9 +56,15 @@ export default function Navbar() {
 						<NavLink to="/login" className={linkClass}>
 							Log in
 						</NavLink>
-						<Link to="/register" className="btn btn-primary">
-							Sign up
-						</Link>
+						{/* without sign-ups, the login page offers the private demo */}
+						{!configLoading && (
+							<Link
+								to={signupsEnabled ? '/register' : '/login'}
+								className="btn btn-primary"
+							>
+								{signupsEnabled ? 'Sign up' : 'Try the demo'}
+							</Link>
+						)}
 					</div>
 				)}
 

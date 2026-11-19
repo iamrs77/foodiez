@@ -23,9 +23,20 @@ describe('pages that need a login', () => {
 		).toBeInTheDocument();
 	});
 
-	it('send vendors home from customer pages', async () => {
-		mockApi({ 'GET /api/restaurants': () => [200, restaurants] });
+	it('send vendors to their restaurants from customer pages', async () => {
+		mockApi({ 'GET /api/restaurants/mine': () => [200, restaurants] });
 		renderApp('/cart', { user: vendor });
+		expect(
+			await screen.findByRole('heading', { name: 'My restaurants' }),
+		).toBeInTheDocument();
+	});
+
+	it('send customers home from vendor pages', async () => {
+		mockApi({
+			'GET /api/restaurants': () => [200, restaurants],
+			'GET /api/cart': () => [200, emptyCart],
+		});
+		renderApp('/vendor', { user: customer });
 		expect(
 			await screen.findByRole('heading', {
 				name: "Hungry? We've got you.",

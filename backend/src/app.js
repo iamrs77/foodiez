@@ -7,6 +7,7 @@ import { requireAuth, requireRole } from './middleware/auth.js';
 import { errorHandler, notFound } from './middleware/errors.js';
 import authRoutes from './routes/auth.js';
 import cartRoutes from './routes/cart.js';
+import demoRoutes from './routes/demo.js';
 import dishRoutes from './routes/dishes.js';
 import orderRoutes from './routes/orders.js';
 import restaurantRoutes from './routes/restaurants.js';
@@ -28,6 +29,7 @@ export function createApp() {
 		});
 	});
 
+	app.use('/api', demoRoutes);
 	app.use('/api/auth', authRoutes);
 	app.use('/api/restaurants', restaurantRoutes);
 	app.use('/api/dishes', dishRoutes);

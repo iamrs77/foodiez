@@ -36,7 +36,7 @@ Every demo account uses the password `password123`. The login page has buttons t
 | `vendor@foodiez.dev`   | Owns Spice Route, Napoli Slice and Dosa Corner. Can change their menus. |
 | `vendor2@foodiez.dev`  | Owns Wok Express and Burger Barn.                                       |
 
-You can also create your own customer or vendor account on the sign-up page.
+You can also create your own customer or vendor account on the sign-up page, or press **Try the demo** for a private copy of the demo data (see [How the demo works](#how-the-demo-works)). On the public site the shared accounts and sign-ups are turned off, and visitors use **Try the demo** instead.
 
 ## What it does
 
@@ -57,7 +57,8 @@ You can also create your own customer or vendor account on the sign-up page.
 - Login attempts are rate limited, and a wrong email and a wrong password give the same error, so nobody can find out who has an account.
 - Every request body is checked with zod. Bad data gets a clear `400` error that the web app shows next to the right field.
 - Orders keep a copy of each dish and its price, so changing a menu later doesn't change old orders.
-- 38 API tests and 22 web app tests. GitHub Actions runs them on every push and also checks that the Docker setup starts.
+- **Try the demo** gives every visitor a private copy of the restaurants, menus and orders, deleted after 24 hours. Visitors can change anything without affecting anyone else, and switch between the customer and the restaurant owner.
+- 53 API tests and 30 web app tests. GitHub Actions runs them on every push and also checks that the Docker setup starts.
 
 | Menu                                    | Cart                                    |
 | --------------------------------------- | --------------------------------------- |
@@ -66,6 +67,16 @@ You can also create your own customer or vendor account on the sign-up page.
 | Order history                                 | Vendor's restaurants                                             |
 | --------------------------------------------- | ---------------------------------------------------------------- |
 | ![Order history](docs/screenshots/orders.png) | ![Vendor's restaurants](docs/screenshots/vendor-restaurants.png) |
+
+## How the demo works
+
+A public demo has a problem: if every visitor shares the same demo accounts, anyone can rename or delete the restaurants everyone else sees. So each visitor who presses **Try the demo** gets their own **sandbox**: a private copy of the demo accounts, restaurants, dishes and past orders.
+
+- **Every document has a `sandbox` field.** It's `null` for the showcase and for real accounts, and points to the visitor's sandbox for demo data. The API reads the sandbox from the visitor's login, and every query filters on it, so a visitor sees and changes only their own copy. A demo customer can't put a dish from another sandbox in their cart, and a demo vendor can't edit another sandbox's restaurant.
+- **MongoDB deletes a demo by itself.** Each sandbox document also has an `expiresAt` date with a [TTL index](https://www.mongodb.com/docs/manual/core/index-ttl/), so MongoDB removes it 24 hours later. There's no clean-up job to run or forget. MongoDB checks about once a minute, so the API also refuses a login whose demo has ended, and the login token expires at the same moment.
+- **One demo, both sides.** A sandbox has a customer and two restaurant owners. The banner's **Switch** button logs the visitor in as the other side of the same sandbox, so they can change a menu as the owner and then order from it as the customer.
+- **The showcase stays as it is.** Logged-out visitors browse the showcase (`sandbox: null`). On the public site nobody can log in to the showcase accounts (`DEMO_ACCOUNTS_LOGIN=false`) or sign up (`SIGNUPS_ENABLED=false`), so it can't be changed.
+- **Limits keep it free.** A demo is about 35 small documents. Each IP can start 10 an hour, and at most 200 exist at once, which fits easily in a free 512 MB database.
 
 ## Tech stack
 
@@ -118,6 +129,12 @@ The API reads these from `backend/.env` or from environment variables. The quick
 | `CORS_ORIGIN`    | Web app addresses allowed to call the API, comma separated  | `http://localhost:5173`      |
 | `SEED_DEMO_DATA` | Add the demo data when the database is empty                | `false`                      |
 | `TRUST_PROXY`    | Number of proxies in front of the API (`1` behind nginx)    | `0`                          |
+| `DEMO_ACCOUNTS_LOGIN` | Let people log in to the demo accounts with the shared password | `true`             |
+| `SIGNUPS_ENABLED` | Let visitors create their own accounts                     | `true`                       |
+| `DEMO_ENABLED`   | Offer **Try the demo**                                      | `true`                       |
+| `DEMO_TTL_HOURS` | How long a visitor's demo lasts                             | `24`                         |
+| `DEMO_MAX_ACTIVE` | Most demos at once                                         | `200`                        |
+| `DEMO_RATE_LIMIT` | New demos per IP address per hour                          | `10`                         |
 
 If a required setting is missing, the API stops at startup and says which one.
 
@@ -167,6 +184,9 @@ You can also run `npm test` inside `backend` or `frontend` on its own. The API t
 | POST   | `/api/orders`                 | customer  | Order everything in the cart       |
 | GET    | `/api/orders`                 | customer  | Your orders, newest first          |
 | GET    | `/api/health`                 | anyone    | Whether the API and database are up |
+| GET    | `/api/config`                 | anyone    | What this site offers (sign-ups, the demo) |
+| POST   | `/api/demo`                   | anyone    | Start a private demo as `{ "as": "customer" }` or `"vendor"`, returns a token |
+| POST   | `/api/demo/switch`            | demo      | Log in as the other side of the same demo |
 
 The API runs on http://localhost:4000. Send the token as `Authorization: Bearer <token>`. Errors look like `{ "message": "...", "errors": [{ "field": "...", "message": "..." }] }`.
 

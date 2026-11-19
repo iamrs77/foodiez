@@ -1,10 +1,12 @@
 import { Outlet } from 'react-router';
+import DemoBanner from './DemoBanner';
 import Navbar from './Navbar';
 
 export default function Layout() {
 	return (
 		<div className="flex min-h-screen flex-col">
 			<Navbar />
+			<DemoBanner />
 			<main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
 				<Outlet />
 			</main>

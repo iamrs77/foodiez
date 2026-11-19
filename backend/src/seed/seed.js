@@ -2,6 +2,7 @@ import { CartItem } from '../models/CartItem.js';
 import { Dish } from '../models/Dish.js';
 import { Order } from '../models/Order.js';
 import { Restaurant } from '../models/Restaurant.js';
+import { Sandbox } from '../models/Sandbox.js';
 import { User } from '../models/User.js';
 import {
 	DEMO_PASSWORD,
@@ -12,19 +13,34 @@ import {
 
 const DAY = 24 * 60 * 60 * 1000;
 
-// deletes everything and loads the demo data
-export async function seedDemoData() {
-	await Promise.all(
-		[User, Restaurant, Dish, CartItem, Order].map((model) =>
-			model.deleteMany({}),
-		),
-	);
+// a demo account's email inside a sandbox, e.g. vendor+<sandbox id>@foodiez.dev,
+// so every visitor's copy of the account has its own unique email
+export function sandboxEmail(email, sandboxId) {
+	const [name, domain] = email.split('@');
+	return `${name}+${sandboxId}@${domain}`;
+}
 
-	const passwordHash = await User.hashPassword(DEMO_PASSWORD);
+/**
+ * Adds the demo accounts, restaurants, dishes and past orders. Without a sandbox
+ * they're the showcase everyone sees. With one, they're a visitor's private copy:
+ * every document belongs to the sandbox and expires with it.
+ */
+export async function loadDemoData({ passwordHash, sandbox = null }) {
+	const stamp = sandbox
+		? { sandbox: sandbox._id, expiresAt: sandbox.expiresAt }
+		: {};
+
 	const users = await User.insertMany(
-		demoUsers.map((user) => ({ ...user, passwordHash })),
+		demoUsers.map((user) => ({
+			...user,
+			email: sandbox ? sandboxEmail(user.email, sandbox.id) : user.email,
+			passwordHash,
+			...stamp,
+		})),
 	);
-	const userByEmail = new Map(users.map((user) => [user.email, user]));
+	const userByDemoEmail = new Map(
+		users.map((user, i) => [demoUsers[i].email, user]),
+	);
 
 	const restaurantByName = new Map();
 	// inserted in reverse so the list (newest first) shows them in the order above
@@ -33,10 +49,15 @@ export async function seedDemoData() {
 	].reverse()) {
 		const restaurant = await Restaurant.create({
 			...data,
-			owner: userByEmail.get(ownerEmail)._id,
+			owner: userByDemoEmail.get(ownerEmail)._id,
+			...stamp,
 		});
 		const savedDishes = await Dish.insertMany(
-			dishes.map((dish) => ({ ...dish, restaurant: restaurant._id })),
+			dishes.map((dish) => ({
+				...dish,
+				restaurant: restaurant._id,
+				...stamp,
+			})),
 		);
 		restaurantByName.set(restaurant.name, {
 			restaurant,
@@ -63,6 +84,7 @@ export async function seedDemoData() {
 			restaurantName: restaurant.name,
 			items: orderItems,
 			total: orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0),
+			...stamp,
 		});
 
 		// timestamps can't be set through Mongoose, so date the order in the past directly
@@ -72,6 +94,21 @@ export async function seedDemoData() {
 			{ $set: { createdAt: placedAt, updatedAt: placedAt } },
 		);
 	}
+
+	return users;
+}
+
+// deletes everything, including any visitors' demos, and loads the demo data
+export async function seedDemoData() {
+	await Promise.all(
+		[User, Restaurant, Dish, CartItem, Order, Sandbox].map((model) =>
+			model.deleteMany({}),
+		),
+	);
+
+	const users = await loadDemoData({
+		passwordHash: await User.hashPassword(DEMO_PASSWORD),
+	});
 
 	return {
 		users: users.length,

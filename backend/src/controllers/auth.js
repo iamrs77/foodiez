@@ -1,8 +1,10 @@
 import bcrypt from 'bcrypt';
 import { z } from 'zod';
+import { config } from '../config.js';
 import { signToken } from '../middleware/auth.js';
 import { HttpError } from '../middleware/errors.js';
 import { ROLES, User } from '../models/User.js';
+import { demoUsers } from '../seed/demoData.js';
 
 const email = z
 	.string()
@@ -32,6 +34,19 @@ export const loginSchema = z.object({
 // as a wrong password and response times don't reveal who has an account
 const DUMMY_HASH = await bcrypt.hash('not-a-real-password', 10);
 
+const DEMO_EMAILS = new Set(demoUsers.map((user) => user.email));
+
+// on a public site, sign-ups are off: visitors try a private demo instead
+export function requireSignupsEnabled(_req, _res, next) {
+	if (!config.SIGNUPS_ENABLED) {
+		throw new HttpError(
+			403,
+			'New accounts are turned off here. Try the demo instead.',
+		);
+	}
+	next();
+}
+
 export async function register(req, res) {
 	const { password, ...profile } = req.body;
 
@@ -48,9 +63,15 @@ export async function register(req, res) {
 }
 
 export async function login(req, res) {
-	const user = await User.findOne({ email: req.body.email }).select(
-		'+passwordHash',
-	);
+	// demo accounts in visitors' sandboxes can't log in with a password, and on a
+	// public site neither can the shared showcase accounts
+	const canLogIn =
+		config.DEMO_ACCOUNTS_LOGIN || !DEMO_EMAILS.has(req.body.email);
+	const user = canLogIn
+		? await User.findOne({ email: req.body.email, sandbox: null }).select(
+				'+passwordHash',
+			)
+		: null;
 	const passwordMatches = await bcrypt.compare(
 		req.body.password,
 		user?.passwordHash ?? DUMMY_HASH,

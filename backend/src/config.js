@@ -24,6 +24,17 @@ const schema = z.object({
 	TRUST_PROXY: z.coerce.number().int().min(0).default(0),
 	// fill an empty database with demo restaurants and accounts on startup
 	SEED_DEMO_DATA: z.stringbool().default(false),
+	// let people log in to those demo accounts with the shared password; a public
+	// site turns this off, so nobody can change the restaurants everyone sees
+	DEMO_ACCOUNTS_LOGIN: z.stringbool().default(true),
+	// let visitors create their own accounts
+	SIGNUPS_ENABLED: z.stringbool().default(true),
+	// "Try the demo": each visitor gets a private copy of the demo data
+	DEMO_ENABLED: z.stringbool().default(true),
+	DEMO_TTL_HOURS: z.coerce.number().positive().default(24),
+	DEMO_MAX_ACTIVE: z.coerce.number().int().positive().default(200),
+	// new demos per IP address per hour
+	DEMO_RATE_LIMIT: z.coerce.number().int().positive().default(10),
 });
 
 const result = schema.safeParse(process.env);

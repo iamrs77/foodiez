@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, Navigate } from 'react-router';
-import { useRegisterMutation } from '../app/api';
+import { startSession, useRegisterMutation } from '../app/api';
 import Alert from '../components/Alert';
 import Field from '../components/Field';
-import { loggedIn, selectUser } from '../features/auth/authSlice';
+import TryDemo from '../components/TryDemo';
+import { selectUser } from '../features/auth/authSlice';
 import { getErrorMessage, getFieldErrors } from '../lib/errors';
+import { useSiteConfig } from '../lib/useSiteConfig';
 
 const ROLES = [
 	{ value: 'customer', emoji: '😋', title: 'I want to order food' },
@@ -16,6 +18,7 @@ export default function RegisterPage() {
 	const user = useSelector(selectUser);
 	const dispatch = useDispatch();
 	const [register, { isLoading, error }] = useRegisterMutation();
+	const { isLoading: configLoading, signupsEnabled } = useSiteConfig();
 	const [form, setForm] = useState({
 		role: 'customer',
 		firstName: '',
@@ -32,6 +35,24 @@ export default function RegisterPage() {
 		);
 	}
 
+	if (configLoading) {
+		return null;
+	}
+	// a public demo site has sign-ups turned off; visitors try a private demo instead
+	if (!signupsEnabled) {
+		return (
+			<div className="card mx-auto mt-8 max-w-lg p-8 shadow-lg">
+				<h1 className="text-3xl font-bold">Create an account</h1>
+				<p className="mt-2 text-gray-600">
+					New accounts are turned off on this demo site. Try the app
+					with a private demo instead: it has restaurants, menus and
+					past orders ready to use.
+				</p>
+				<TryDemo className="mt-6" />
+			</div>
+		);
+	}
+
 	const update = (field) => (event) =>
 		setForm({ ...form, [field]: event.target.value });
 	const fieldErrors = getFieldErrors(error);
@@ -45,7 +66,7 @@ export default function RegisterPage() {
 		setMismatch(false);
 		const { passwordConfirm: _, ...body } = form;
 		try {
-			dispatch(loggedIn(await register(body).unwrap()));
+			dispatch(startSession(await register(body).unwrap()));
 		} catch {
 			// shown from `error` below
 		}

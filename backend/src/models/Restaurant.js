@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { sandboxPlugin } from './Sandbox.js';
 import { toJSONPlugin } from './toJSON.js';
 
 const restaurantSchema = new mongoose.Schema(
@@ -18,6 +19,9 @@ const restaurantSchema = new mongoose.Schema(
 	{ timestamps: true },
 );
 
+restaurantSchema.plugin(sandboxPlugin);
+// the restaurant list: one sandbox's restaurants, newest first
+restaurantSchema.index({ sandbox: 1, createdAt: -1, _id: -1 });
 restaurantSchema.plugin(toJSONPlugin);
 
 export const Restaurant = mongoose.model('Restaurant', restaurantSchema);

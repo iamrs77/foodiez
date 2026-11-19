@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, Navigate, useLocation } from 'react-router';
-import { useLoginMutation } from '../app/api';
+import { startSession, useLoginMutation } from '../app/api';
 import Alert from '../components/Alert';
 import Field from '../components/Field';
-import { loggedIn, selectUser } from '../features/auth/authSlice';
+import TryDemo from '../components/TryDemo';
+import { selectUser } from '../features/auth/authSlice';
 import { getErrorMessage } from '../lib/errors';
+import { useSiteConfig } from '../lib/useSiteConfig';
 
 // the accounts created by the backend's demo data
 const DEMO_ACCOUNTS = [
@@ -20,6 +22,11 @@ export default function LoginPage() {
 	const location = useLocation();
 	const [form, setForm] = useState({ email: '', password: '' });
 	const [login, { isLoading, error }] = useLoginMutation();
+	const {
+		isLoading: configLoading,
+		signupsEnabled,
+		demoAccountsLogin,
+	} = useSiteConfig();
 
 	// once logged in, go back to the page that asked for a login, or to the right home page
 	if (user) {
@@ -33,7 +40,7 @@ export default function LoginPage() {
 	const handleSubmit = async (event) => {
 		event.preventDefault();
 		try {
-			dispatch(loggedIn(await login(form).unwrap()));
+			dispatch(startSession(await login(form).unwrap()));
 		} catch {
 			// shown from `error` below
 		}
@@ -42,15 +49,19 @@ export default function LoginPage() {
 	return (
 		<div className="card mx-auto mt-8 max-w-md p-8 shadow-lg">
 			<h1 className="text-3xl font-bold">Log in</h1>
-			<p className="mt-1 text-gray-500">
-				New here?{' '}
-				<Link
-					to="/register"
-					className="font-semibold text-ink underline"
-				>
-					Create an account
-				</Link>
-			</p>
+			{!configLoading && signupsEnabled && (
+				<p className="mt-1 text-gray-500">
+					New here?{' '}
+					<Link
+						to="/register"
+						className="font-semibold text-ink underline"
+					>
+						Create an account
+					</Link>
+				</p>
+			)}
+
+			<TryDemo className="mt-6" />
 
 			{error && (
 				<div className="mt-4">
@@ -90,29 +101,31 @@ export default function LoginPage() {
 				</button>
 			</form>
 
-			<div className="mt-6 rounded-xl bg-page p-4 text-sm">
-				<p className="font-semibold">Just looking around?</p>
-				<p className="text-gray-500">
-					Fill in a demo account (password {DEMO_PASSWORD}):
-				</p>
-				<div className="mt-2 flex flex-wrap gap-2">
-					{DEMO_ACCOUNTS.map((account) => (
-						<button
-							key={account.email}
-							type="button"
-							className="btn btn-outline"
-							onClick={() =>
-								setForm({
-									email: account.email,
-									password: DEMO_PASSWORD,
-								})
-							}
-						>
-							{account.label}
-						</button>
-					))}
+			{!configLoading && demoAccountsLogin && (
+				<div className="mt-6 rounded-xl bg-page p-4 text-sm">
+					<p className="font-semibold">Just looking around?</p>
+					<p className="text-gray-500">
+						Fill in a demo account (password {DEMO_PASSWORD}):
+					</p>
+					<div className="mt-2 flex flex-wrap gap-2">
+						{DEMO_ACCOUNTS.map((account) => (
+							<button
+								key={account.email}
+								type="button"
+								className="btn btn-outline"
+								onClick={() =>
+									setForm({
+										email: account.email,
+										password: DEMO_PASSWORD,
+									})
+								}
+							>
+								{account.label}
+							</button>
+						))}
+					</div>
 				</div>
-			</div>
+			)}
 		</div>
 	);
 }

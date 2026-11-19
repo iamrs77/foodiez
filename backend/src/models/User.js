@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt';
 import mongoose from 'mongoose';
+import { sandboxPlugin } from './Sandbox.js';
 import { toJSONPlugin } from './toJSON.js';
 
 export const ROLES = ['customer', 'vendor'];
@@ -22,6 +23,7 @@ const userSchema = new mongoose.Schema(
 	{ timestamps: true },
 );
 
+userSchema.plugin(sandboxPlugin);
 userSchema.plugin(toJSONPlugin, { hide: ['passwordHash'] });
 
 userSchema.statics.hashPassword = function (password) {
