@@ -9,7 +9,13 @@ export class HttpError extends Error {
 }
 
 export function notFound(req, _res, next) {
-	next(new HttpError(404, `Route ${req.method} ${req.path} not found`));
+	// baseUrl is the part before where this handler is mounted, e.g. /api
+	next(
+		new HttpError(
+			404,
+			`Route ${req.method} ${req.baseUrl}${req.path} not found`,
+		),
+	);
 }
 
 // every error ends up here (Express 5 also forwards errors from async handlers)

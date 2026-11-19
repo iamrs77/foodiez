@@ -22,6 +22,9 @@ const schema = z.object({
 	CORS_ORIGIN: z.string().default('http://localhost:5173'),
 	// number of proxies in front of the API (1 behind the nginx in Docker)
 	TRUST_PROXY: z.coerce.number().int().min(0).default(0),
+	// folder of the built web app (frontend/dist). When set, the API serves it
+	// too, so the whole app is one service; Docker uses nginx instead
+	WEB_APP_DIR: z.string().min(1).optional(),
 	// fill an empty database with demo restaurants and accounts on startup
 	SEED_DEMO_DATA: z.stringbool().default(false),
 	// let people log in to those demo accounts with the shared password; a public

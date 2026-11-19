@@ -1,0 +1,38 @@
+# Render Blueprint: one free web service that runs the API and serves the web app.
+# The database is a free MongoDB Atlas cluster; see docs/deploy.md.
+services:
+    - type: web
+      name: foodiez
+      runtime: node
+      plan: free
+      region: virginia # next to MongoDB Atlas's AWS us-east-1 (N. Virginia)
+      # The web app is built with Vite, a dev dependency. The API only needs its own
+      # dependencies, which also skips the in-memory MongoDB the tests download.
+      buildCommand: npm ci --prefix frontend --include=dev && npm ci --prefix backend --omit=dev && npm run build
+      startCommand: npm start
+      healthCheckPath: /api/health
+      # Deploy only after GitHub Actions CI passes on main.
+      autoDeployTrigger: checksPass
+      envVars:
+          - key: NODE_ENV
+            value: production
+          - key: NODE_VERSION
+            value: '24' # the version CI tests with
+          - key: MONGODB_URI
+            sync: false # the Atlas connection string, ending in /foodiez
+          - key: JWT_SECRET
+            generateValue: true
+          - key: WEB_APP_DIR
+            value: frontend/dist
+          # Render puts one proxy in front of the app; rate limits need the real client IP.
+          - key: TRUST_PROXY
+            value: '1'
+          # The showcase everyone browses, added on the first start.
+          - key: SEED_DEMO_DATA
+            value: 'true'
+          # Visitors get private demos instead: the shared demo accounts and open
+          # sign-ups would let anyone change what everyone else sees.
+          - key: DEMO_ACCOUNTS_LOGIN
+            value: 'false'
+          - key: SIGNUPS_ENABLED
+            value: 'false'

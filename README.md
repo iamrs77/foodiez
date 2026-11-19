@@ -76,7 +76,7 @@ A public demo has a problem: if every visitor shares the same demo accounts, any
 - **MongoDB deletes a demo by itself.** Each sandbox document also has an `expiresAt` date with a [TTL index](https://www.mongodb.com/docs/manual/core/index-ttl/), so MongoDB removes it 24 hours later. There's no clean-up job to run or forget. MongoDB checks about once a minute, so the API also refuses a login whose demo has ended, and the login token expires at the same moment.
 - **One demo, both sides.** A sandbox has a customer and two restaurant owners. The banner's **Switch** button logs the visitor in as the other side of the same sandbox, so they can change a menu as the owner and then order from it as the customer.
 - **The showcase stays as it is.** Logged-out visitors browse the showcase (`sandbox: null`). On the public site nobody can log in to the showcase accounts (`DEMO_ACCOUNTS_LOGIN=false`) or sign up (`SIGNUPS_ENABLED=false`), so it can't be changed.
-- **Limits keep it free.** A demo is about 35 small documents. Each IP can start 10 an hour, and at most 200 exist at once, which fits easily in a free 512 MB database.
+- **Limits keep it free.** A demo is about 35 small documents. Each IP can start 10 an hour, and at most 200 exist at once, which fits easily in a free 512 MB database. See [docs/deploy.md](docs/deploy.md).
 
 ## Tech stack
 
@@ -86,7 +86,11 @@ A public demo has a problem: if every visitor shares the same demo accounts, any
 | API      | Node.js, Express 5, Mongoose, zod, JWT, bcrypt, helmet                  |
 | Database | MongoDB                                                                 |
 | Tests    | Vitest, Testing Library, supertest, mongodb-memory-server               |
-| DevOps   | Docker Compose, nginx, GitHub Actions                                   |
+| DevOps   | Docker Compose, nginx, GitHub Actions, Render, MongoDB Atlas            |
+
+## Deploy it for free
+
+The public demo runs on a free Render web service and a free MongoDB Atlas cluster, as one service: the API also serves the built web app. [docs/deploy.md](docs/deploy.md) has the steps, and `render.yaml` has the settings.
 
 ## Other ways to run it
 
@@ -135,6 +139,7 @@ The API reads these from `backend/.env` or from environment variables. The quick
 | `DEMO_TTL_HOURS` | How long a visitor's demo lasts                             | `24`                         |
 | `DEMO_MAX_ACTIVE` | Most demos at once                                         | `200`                        |
 | `DEMO_RATE_LIMIT` | New demos per IP address per hour                          | `10`                         |
+| `WEB_APP_DIR`    | Folder of the built web app; when set, the API serves it too | not set                    |
 
 If a required setting is missing, the API stops at startup and says which one.
 
@@ -214,6 +219,8 @@ frontend/
     lib/              formatting and small helpers
   nginx.conf          serves the app and passes /api to the backend in Docker
 docker-compose.yml    MongoDB + API + web app
+render.yaml           the free deployment on Render
+docs/deploy.md        how to deploy it for free
 ```
 
 ## History

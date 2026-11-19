@@ -1,4 +1,9 @@
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { createApp } from '../src/app.js';
 import { config } from '../src/config.js';
 import { CartItem } from '../src/models/CartItem.js';
 import { Dish } from '../src/models/Dish.js';
@@ -301,5 +306,29 @@ describe('settings for a public site', () => {
 
 		// everyone can still browse the showcase
 		expect(await restaurantNames()).toHaveLength(5);
+	});
+});
+
+describe('serving the web app', () => {
+	it('serves the built files, and index.html for any page', async () => {
+		const dir = mkdtempSync(path.join(tmpdir(), 'foodiez-web-'));
+		mkdirSync(path.join(dir, 'assets'));
+		writeFileSync(path.join(dir, 'index.html'), '<div id="root"></div>');
+		writeFileSync(path.join(dir, 'assets', 'app-abc123.js'), 'run()');
+		config.WEB_APP_DIR = dir;
+		const web = request(createApp());
+
+		const home = await web.get('/').expect(200);
+		expect(home.text).toContain('<div id="root">');
+		const page = await web.get('/restaurants/anything').expect(200);
+		expect(page.text).toContain('<div id="root">');
+		expect(page.headers['cache-control']).toBe('no-cache');
+
+		const asset = await web.get('/assets/app-abc123.js').expect(200);
+		expect(asset.headers['cache-control']).toContain('immutable');
+
+		// unknown API routes are still JSON errors, not the web app
+		const missing = await web.get('/api/nope').expect(404);
+		expect(missing.body.message).toBe('Route GET /api/nope not found');
 	});
 });

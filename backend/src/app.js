@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
@@ -35,9 +37,37 @@ export function createApp() {
 	app.use('/api/dishes', dishRoutes);
 	app.use('/api/cart', requireAuth, requireRole('customer'), cartRoutes);
 	app.use('/api/orders', requireAuth, requireRole('customer'), orderRoutes);
+	app.use('/api', notFound);
+
+	if (config.WEB_APP_DIR) {
+		serveWebApp(app, path.resolve(config.WEB_APP_DIR));
+	}
 
 	app.use(notFound);
 	app.use(errorHandler);
 
 	return app;
+}
+
+// the built web app: its files, and index.html for every other page, so the
+// web app's router can show it
+function serveWebApp(app, dir) {
+	const indexHtml = path.join(dir, 'index.html');
+	if (!existsSync(indexHtml)) {
+		throw new Error(
+			`WEB_APP_DIR is set, but ${indexHtml} doesn't exist. Build the web app first.`,
+		);
+	}
+	// built file names contain a hash of their content, so they can be cached for good
+	app.use(
+		'/assets',
+		express.static(path.join(dir, 'assets'), {
+			immutable: true,
+			maxAge: '1y',
+		}),
+	);
+	app.use(express.static(dir, { index: false }));
+	app.get('/{*page}', (_req, res) => {
+		res.set('Cache-Control', 'no-cache').sendFile(indexHtml);
+	});
 }
