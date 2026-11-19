@@ -1,4 +1,5 @@
 import { Search } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { useSearchParams } from 'react-router';
 import { useGetCuisinesQuery, useGetRestaurantsQuery } from '../app/api';
@@ -45,14 +46,25 @@ export default function HomePage() {
 		refetch,
 	} = useGetRestaurantsQuery({ search: query, cuisine, veg, sort });
 
+	// the filters as last changed here. `params` only shows a change once React
+	// has rendered it, so a quick second change (turning a filter off, then
+	// typing) must build on this, or it would put the first change back
+	const latest = useRef(params);
+	useEffect(() => {
+		latest.current = params;
+	}, [params]);
+	const replaceParams = (next) => {
+		latest.current = next;
+		setParams(next, { replace: true });
+	};
 	const setParam = (key, value) => {
-		const next = new URLSearchParams(params);
+		const next = new URLSearchParams(latest.current);
 		if (value) {
 			next.set(key, value);
 		} else {
 			next.delete(key);
 		}
-		setParams(next, { replace: true });
+		replaceParams(next);
 	};
 	const handleSearch = (event) => setParam('q', event.target.value);
 	const filtered = Boolean(query || cuisine || veg);
@@ -85,7 +97,7 @@ export default function HomePage() {
 					<button
 						type="button"
 						className="btn btn-outline mt-4"
-						onClick={() => setParams({}, { replace: true })}
+						onClick={() => replaceParams(new URLSearchParams())}
 					>
 						Clear search and filters
 					</button>

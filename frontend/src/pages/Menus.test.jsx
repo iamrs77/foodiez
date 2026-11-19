@@ -1,4 +1,10 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import {
+	act,
+	fireEvent,
+	screen,
+	waitFor,
+	within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { customer, emptyCart, mockApi, renderApp, vendor } from '../test/utils';
@@ -150,6 +156,36 @@ describe('finding restaurants', () => {
 			await screen.findByRole('button', { name: 'All', pressed: true }),
 		).toBeVisible();
 		expect(queries[0]).toBe('');
+	});
+});
+
+describe('quick changes to the filters', () => {
+	// a click and a keystroke in the same moment, before React re-renders: the
+	// second change must build on the first, not on what was on screen
+	it("don't undo each other", async () => {
+		const queries = [];
+		mockApi({
+			'GET /api/restaurants': ({ url }) => {
+				queries.push(url.search);
+				return [200, []];
+			},
+			'GET /api/restaurants/cuisines': () => [200, ['Pizza']],
+		});
+		renderApp('/?veg=1');
+
+		const pureVeg = await screen.findByRole('button', { name: /Pure veg/ });
+		// one act(): React doesn't re-render between the two events
+		act(() => {
+			fireEvent.click(pureVeg);
+			fireEvent.change(screen.getByRole('searchbox'), {
+				target: { value: 'burg' },
+			});
+		});
+
+		await waitFor(() => expect(queries.at(-1)).toBe('?search=burg'));
+		expect(
+			screen.getByRole('button', { name: /Pure veg/ }),
+		).toHaveAttribute('aria-pressed', 'false');
 	});
 });
 

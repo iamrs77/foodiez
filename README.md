@@ -46,7 +46,7 @@ flowchart LR
 - **Search uses an index.** Each restaurant keeps the words of its name, cuisine and area, and a search matches the start of those words, which MongoDB answers from an index instead of reading every restaurant.
 - **Each demo visitor gets a private sandbox.** Every document has a `sandbox` field, the API scopes every query to the visitor's sandbox, and a MongoDB TTL index deletes the whole demo after 24 hours, with no clean-up job.
 - **The API is documented and held to it.** An OpenAPI 3.1 spec, browsable at `/api/docs`, is checked against real responses by a contract test.
-- **Tested end to end.** 88 API tests against a real in-memory MongoDB, 44 web app tests, and 5 Playwright browser tests that run the app the way the public demo runs it.
+- **Tested end to end.** 88 API tests against a real in-memory MongoDB, 45 web app tests, and 5 Playwright browser tests that run the app the way the public demo runs it.
 - **Free to host.** The API also serves the built web app, so it's one free Render service with a free MongoDB Atlas cluster.
 
 The design, with diagrams, the data model, failure modes and the reasons behind each decision, is in the [documentation](#documentation).
