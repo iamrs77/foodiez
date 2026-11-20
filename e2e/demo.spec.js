@@ -130,9 +130,14 @@ test('a demo visitor orders, then runs the restaurant that receives it', async (
 		page.getByRole('link', { name: 'Orders, 1 new' }),
 	).toBeVisible();
 
-	// and the customer sees where it's got to
+	// and the customer sees where it's got to (waiting for each page, since
+	// switching takes a request, which is slower on the live site)
 	await page.getByRole('button', { name: 'Switch to the customer' }).click();
+	await expect(page.getByText('Hi, Priya')).toBeVisible();
 	await page.getByRole('link', { name: 'Orders' }).click();
+	await expect(
+		page.getByRole('heading', { name: 'Your orders' }),
+	).toBeVisible();
 	await page
 		.getByRole('link', { name: /Dosa Corner/ })
 		.first()
@@ -166,6 +171,7 @@ test("a restaurant owner's menu changes reach their own demo, and nobody else's"
 
 	// the demo's customer sees the change
 	await page.getByRole('button', { name: 'Switch to the customer' }).click();
+	await expect(page.getByText('Hi, Priya')).toBeVisible();
 	await restaurant(page, 'Spice Route by Visitor One').click();
 	await expect(page.getByText('Visitor Special')).toBeVisible();
 

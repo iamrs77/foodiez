@@ -4,6 +4,8 @@
 
 A food ordering web app. Customers browse restaurants, fill a cart, place orders and track them to their door. Restaurant owners (vendors) run their menus and move each order from "accepted" to "delivered".
 
+**[Live demo](https://foodiez-izdk.onrender.com)**: press **Try the demo** to get your own copy of the restaurants for 24 hours, with no sign-up. Order as the customer, then switch to the restaurant owner to accept it. It runs on free hosting, so the first visit after a quiet spell can take about a minute while the server wakes up.
+
 ![Foodiez home page, with restaurant photos, cuisine filters and the demo card](docs/screenshots/home.webp)
 
 ## About
